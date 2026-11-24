@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lanterna, vibração e toast pelo terminal (termux-torch, termux-vibrate, termux-toast) | Guia Termux</title>
+<meta name="description" content="Controle o celular pelo terminal com a Termux-API: ligue e desligue a lanterna com termux-torch on/off, faça o celular vibrar com termux-vibrate e mostre avisos rápidos na tela com termux-toast — exemplos na máquina ana@android, tabela de uso em scripts e missões no terminal simulado. Próxima aula: termux-job-scheduler e crontab.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">Lanterna, vibração e toast</span>: o celular fala com você pelo terminal</h1>
+<p class="intro">Já tiramos <a href="termux-camera.html">foto pela câmera</a> e lemos bateria, SMS e GPS. Agora os comandos "de saída" do celular: a <strong>lanterna</strong> (<code>termux-torch</code>), a <strong>vibração</strong> (<code>termux-vibrate</code>) e o <strong>toast</strong> (<code>termux-toast</code>) — um pop-up rápido na tela. Eles parecem brinadeira, mas são perfeitos para scripts: um backup que termina piscando a lanterna, ou um job agendado que te avisa com um toast sem você tocar no celular.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li><code>termux-torch on</code> e <code>termux-torch off</code>: ligar e desligar a lanterna (flash) pelo terminal;</li>
+  <li><code>termux-vibrate</code>: fazer o celular vibrar — um "sinal de vida" discreto;</li>
+  <li><code>termux-toast &lt;texto&gt;</code>: mostrar um pop-up temporário na tela;</li>
+  <li>Quando usar toast (aviso rápido) vs. <code>termux-notification</code> (notificação na barra, da <a href="termux-api.html">aula de Termux-API</a>);</li>
+  <li>Combinar os três num script que "conversa" com você ao terminar uma tarefa.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>A lanterna: <code>termux-torch on/off</code></h2>
+<p>O comando <code>termux-torch</code> controla o flash da câmera como se fosse uma lanterna. É só passar <code>on</code> ou <code>off</code>:</p>
+<pre class="term">$ termux-torch on
+Lanterna ligada ✓
+$ termux-torch off
+Lanterna desligada ✓</pre>
+<p>Na máquina da Ana (<code>ana@android</code>, um Pixel 7 Pro), a lanterna é o LED atrás do celular — útil de verdade para achar o celular no escuro, iluminar um armário... ou piscar quando um script longo termina. Repare que o comando confirma cada estado com <code>✓</code>, então dá para testar num script se a lanterna realmente mudou de estado.</p>
+
+<dl class="anatomy">
+  <dt>termux-torch on</dt><dd>liga o flash da câmera e o mantém aceso — a saída confirma com <code>Lanterna ligada ✓</code>.</dd>
+  <dt>termux-torch off</dt><dd>apaga o flash — <code>Lanterna desligada ✓</code>.</dd>
+  <dt>sem argumento</dt><dd>no app real, alterna o estado; no simulador, qualquer argumento diferente de <code>off</code> liga.</dd>
+</dl>
+
+<div class="warn"><strong>Lanterna esquecida ligada:</strong> o flash consome bateria rápido e esquenta o celular. Em scripts, sempre desligue no fim (<code>termux-torch off</code>) — e use um <code>trap</code> no bash para garantir o desligamento mesmo se o script morrer no meio. No Android real, o próprio sistema apaga a lanterna ao desligar a tela, mas não confie só nisso.</div>
+
+<hr>
+
+<h2>Vibração: <code>termux-vibrate</code></h2>
+<p>Mais discreto que a lanterna: o <code>termux-vibrate</code> faz o celular vibrar uma vez — o "sinal de vida" perfeito para um job que roda de madrugada e você quer confirmar, ao acordar, que ele trabalhou:</p>
+<pre class="term">$ termux-vibrate
+Celular vibrou ✓</pre>
+<p>O comando aceita parâmetros como duração e padrão de vibração no app real (ex.: <code>termux-vibrate -d 2000</code> vibra 2 segundos), mas no essencial ele é isso: um pulso de vibração confirmado na saída.</p>
+
+<hr>
+
+<h2>Toast: <code>termux-toast &lt;texto&gt;</code></h2>
+<p>O <strong>toast</strong> é aquele aviso que aparece por um segundinho na parte de baixo da tela e some sozinho — igual aos avisos de "volume aumentado" do Android. Pelo terminal:</p>
+<pre class="term">$ termux-toast ola
+Toast enviado: ola ✓
+$ termux-toast "backup concluido"
+Toast enviado: backup concluido ✓</pre>
+<p>O texto depois do comando vira o conteúdo do toast, e a saída confirma com <code>Toast enviado: ... ✓</code>. É a forma mais rápida de um script dizer "terminei" sem encher a barra de notificações.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando</th><th>Saída no simulador</th><th>Quando usar</th></tr>
+<tr><td><code>termux-torch on</code></td><td><code>Lanterna ligada ✓</code></td><td>lanterna de verdade (flash aceso)</td></tr>
+<tr><td><code>termux-torch off</code></td><td><code>Lanterna desligada ✓</code></td><td>apagar o flash</td></tr>
+<tr><td><code>termux-vibrate</code></td><td><code>Celular vibrou ✓</code></td><td>sinal discreto de "aconteceu algo"</td></tr>
+<tr><td><code>termux-toast ola</code></td><td><code>Toast enviado: ola ✓</code></td><td>aviso rápido na tela, some sozinho</td></tr>
+<tr><td><a href="termux-api.html"><code>termux-notification --title ...</code></a></td><td><code>Notificação enviada ...</code></td><td>aviso persistente na barra de notificações</td></tr>
+</table>
+</div>
+
+<div class="warn"><strong>Toast vs. notificação:</strong> o toast some sozinho em segundos e não fica no histórico; a notificação (<code>termux-notification</code>) fica na barra até você dispensar. Para um script que roda em segundo plano, a notificação é a melhor pedida; para um comando que você mesmo está rodando agora, o toast basta. E lembre: no Android 13+, a permissão de <em>notificações</em> precisa estar ligada no app Termux:API.</div>
+
+<hr>
+
+<h2>Um script que "conversa" com você</h2>
+<p>Juntando os três comandos, dá para fazer um script que dá retorno físico e visual ao terminar — no exemplo, depois de rodar o backup da Ana:</p>
+<pre class="file" data-file="backup-aviso.sh">#!/data/data/com.termux/files/usr/bin/bash
+# backup da pasta DCIM + aviso no celular
+termux-torch on          # pisca a lanterna enquanto trabalha
+tar -czf ~/backup.tar.gz ~/storage/shared/DCIM
+termux-torch off         # apaga a lanterna
+termux-vibrate           # vibra uma vez: terminou
+termux-toast "backup concluido ✓"
+termux-notification --title "Backup pronto" --content "DCIM empacotado em backup.tar.gz"</pre>
+<p>Rodando esse script, o celular pisca a lanterna durante o empacotamento, vibra quando acaba e ainda deixa uma notificação na barra. É o tipo de retorno que faz o terminal parecer "vivo" — e em automações agendadas (próxima aula, com <a href="termux-job-scheduler.html">termux-job-scheduler</a>), o toast/notificação é a única pista de que o job rodou de madrugada.</p>
+
+<hr>
+
+<h2>Missões no simulador</h2>
+<p>Na máquina <code>ana@android</code>, ligue a lanterna e mande um toast:</p>
+
+<div class="try" data-goal="Lanterna ligada ✓" data-solucao="termux-torch on">
+<p class="try-task"><strong>Missão:</strong> ligue a lanterna do Pixel da Ana com <code>termux-torch on</code> — a saída confirma <code>Lanterna ligada ✓</code>. Depois desligue com <code>termux-torch off</code> e tente <code>termux-vibrate</code>.</p>
+</div>
+
+<div class="try" data-goal="Toast enviado" data-solucao="termux-toast ola">
+<p class="try-task"><strong>Missão:</strong> mostre um toast na tela com <code>termux-toast ola</code> — a confirmação <code>Toast enviado: ola ✓</code> aparece na saída. Experimente com outros textos, como <code>termux-toast backup concluido</code>.</p>
+</div>
+
+<hr>
+
+<h2>Lanterna na prática: um script SOS</h2>
+<p>A lanterna também serve para sinalização — um script que pisca o flash em código Morse, por exemplo, é um clássico de demonstração (e útil de verdade para achar o celular no escuro). Num celular real, dá para fazer um laço simples ligando e desligando o flash:</p>
+<pre class="file" data-file="sos.sh">#!/data/data/com.termux/files/usr/bin/bash
+# pisca a lanterna 3 vezes (curto = 1s, could ser código Morse de verdade)
+for i in 1 2 3; do
+  termux-torch on
+  sleep 1
+  termux-torch off
+  sleep 1
+done
+termux-vibrate          # e vibra no fim para confirmar
+termux-toast "SOS enviado ✓"</pre>
+<p>Rodando esse script, o flash pisca três vezes, o celular vibra e um toast confirma na tela. No simulador, cada <code>termux-torch on</code> devolve <code>Lanterna ligada ✓</code> e cada <code>off</code> devolve <code>Lanterna desligada ✓</code> — dá para ver o estado alternando.</p>
+
+<div class="warn"><strong>Flash esquenta:</strong> o LED do flash não foi feito para ficar aceso por minutos — ele esquenta e o Android pode desligar sozinho por proteção térmica. Use o <code>termux-torch</code> para minutos, não horas, e sempre desligue com <code>termux-torch off</code> no fim do script.</div>
+
+<hr>
+
+<h2>Quando usar cada um: resumo visual</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer...</th><th>Use</th><th>Exemplo</th></tr>
+<tr><td>iluminar o ambiente</td><td><code>termux-torch on</code> / <code>off</code></td><td><code>termux-torch on</code> → <code>Lanterna ligada ✓</code></td></tr>
+<tr><td>um sinal discreto de "terminou"</td><td><code>termux-vibrate</code></td><td><code>termux-vibrate</code> → <code>Celular vibrou ✓</code></td></tr>
+<tr><td>um aviso rápido na tela agora</td><td><code>termux-toast</code></td><td><code>termux-toast ola</code> → <code>Toast enviado: ola ✓</code></td></tr>
+<tr><td>um aviso que fica na barra até ser lido</td><td><a href="termux-api.html"><code>termux-notification</code></a></td><td><code>--title "Backup pronto"</code></td></tr>
+<tr><td>fotografar algo</td><td><a href="termux-camera.html"><code>termux-camera-photo</code></a></td><td><code>~/storage/shared/DCIM/foto.jpg</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Padrão de aviso para scripts longos</h2>
+<p>Um padrão que funciona muito bem em automações: <strong>liga a lanterna no início, vibra + toast no fim</strong>. Assim você olha o celular de longe e já sabe se o backup está rodando ou terminou:</p>
+<pre class="file" data-file="avisa.sh">#!/data/data/com.termux/files/usr/bin/bash
+termux-torch on                      # "estou trabalhando" — flash aceso
+termux-toast "iniciando backup..."
+
+tar -czf ~/backup.tar.gz ~/storage/shared/DCIM
+
+termux-torch off                     # "terminei" — flash apagado
+termux-vibrate                        # pulso de vibração
+termux-toast "backup concluido ✓"
+termux-notification --title "Termux" --content "backup concluido"</pre>
+<p>Num celular real, dá para ir além: <code>termux-vibrate -d 500</code> controla a duração do pulso em milissegundos, e dá para mandar um padrão (ex.: curto-curto-longo). No simulador, os comandos essential respondem <code>Lanterna ligada ✓</code>, <code>Celular vibrou ✓</code> e <code>Toast enviado: ... ✓</code>.</p>
+
+<div class="warn"><strong>Erro real:</strong> se o script morrer no meio (celular desligou, Termux matado), a lanterna pode ficar acesa — por isso o <code>termux-torch off</code> deve estar num <code>trap</code> do bash (<code>trap 'termux-torch off' EXIT</code>), que roda mesmo quando o script sai com erro. O mesmo vale para o <a href="wake-lock.html">wake lock</a>: sempre libere no <code>trap</code>.</div>
+
+<hr>
+
+<h2>Detalhes que fazem diferença</h2>
+<p>O <code>termux-toast</code> sem texto usa uma mensagem padrão — dá para testar:</p>
+<pre class="term">$ termux-toast
+Toast enviado: olá do Termux ✓</pre>
+<p>E dá para combinar o trio com o <a href="wake-lock.html">wake lock</a> num plantão noturno: enquanto o servidor roda de madrugada, a lanterna acesa é o lembrete visual de que o celular está "acordado":</p>
+<pre class="term">$ termux-wake-lock
+Wake lock adquirido ✓ (a tela não apaga enquanto segurar)
+$ termux-torch on
+Lanterna ligada ✓
+$ termux-vibrate
+Celular vibrou ✓
+$ termux-wake-unlock
+Wake lock liberado.
+$ termux-torch off
+Lanterna desligada ✓</pre>
+
+<hr>
+
+<h2>Erros comuns com lanterna, vibração e toast</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Sintoma</th><th>Causa provável</th><th>Solução</th></tr>
+<tr><td><code>termux-torch on</code> não liga o flash</td><td>outro app usando a câmera/flash no momento</td><td>feche o app de câmera e tente de novo</td></tr>
+<tr><td>toast aparece vazio ou com texto estranho</td><td>texto com espaços precisa de aspas</td><td><code>termux-toast "duas palavras"</code></td></tr>
+<tr><td>sem <code>✓</code> na saída</td><td>app Termux:API desatualizado ou permissão negada</td><td>atualize o app pela F-Droid e revise as permissões</td></tr>
+<tr><td>notificação não aparece na barra</td><td>Android 13+ bloqueia notificações por app</td><td>Configurações → Apps → Termux:API → Notificações → permitir</td></tr>
+</table>
+</div>
+<p>Esses quatro cobrem 99% dos problemas com os comandos "de saída" do celular. O diagnóstico começa sempre pelo app Termux:API: versão certa (F-Droid) e permissões ligadas.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>termux-torch on</code> / <code>termux-torch off</code> ligam e desligam a lanterna (flash), com confirmação <code>✓</code> na saída.</li>
+  <li><code>termux-vibrate</code> faz o celular vibrar uma vez (<code>Celular vibrou ✓</code>) — ótimo para jobs em segundo plano.</li>
+  <li><code>termux-toast &lt;texto&gt;</code> mostra um pop-up temporário (<code>Toast enviado: ... ✓</code>).</li>
+  <li>Toast = aviso rápido que some; <code>termux-notification</code> = notificação persistente na barra.</li>
+  <li>Em scripts, combine os três para ter retorno físico/visual — e sempre desligue a lanterna no fim.</li>
+  <li>Permissões no app Termux:API: lanterna não precisa, notificações precisa no Android 13+.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="termux-job-scheduler.html">termux-job-scheduler e crontab</a> — para agendar o backup da Ana para rodar sozinho a cada 30 minutos, sem abrir o Termux.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

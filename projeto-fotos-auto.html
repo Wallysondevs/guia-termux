@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Projeto 4 — Backup automático de fotos no Termux (termux-camera-photo, job-scheduler, crontab) | Guia Termux</title>
+<meta name="description" content="Projeto prático de Termux: faça backup automático das fotos do celular — termux-setup-storage para acessar o DCIM, termux-camera-photo ~/foto.jpg para testar a câmera pelo terminal, o script backup.sh que compacta ~/storage/shared/DCIM em backup.tar.gz, agendado a cada 30 minutos com termux-job-scheduler --script ~/backup.sh --period 300000 (Job agendado ✓) e com crontab -l (*/30 * * * * ~/backup.sh), conferindo o resultado com cat backup.log (backup concluido). Missões no terminal simulado ana@android. Próxima página: ref-termux.html.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Projeto 4 — <span class="hl">backup automático de fotos</span> (câmera + agendamento)</h1>
+
+<p class="intro">Último projeto da trilha: a Ana quer que as fotos do celular sejam copiadas <strong>sozinhas, a cada 30 minutos, sem ela fazer nada</strong>. A receita junta três peças que você já viu: a Termux-API para tirar foto/ler a câmera (<a href="termux-camera.html">termux-camera-photo</a>), o acesso ao DCIM via <code>~/storage/shared</code> (<a href="storage.html">storage</a>) e o agendador <code>termux-job-scheduler</code>/<code>crontab</code> (<a href="termux-job-scheduler.html">job-scheduler e crontab</a>). No fim, o <code>backup.log</code> prova que rodou — e o PC puxa o resultado por rsync (projeto 3, <a href="projeto-sync-pc.html">sync celular ↔ PC</a>).</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A dar acesso às fotos: <code>termux-setup-storage</code> e <code>ls ~/storage</code> (sem isso: <code>Permission denied</code>).</li>
+  <li>A tirar uma foto pelo terminal com <code>termux-camera-photo ~/foto.jpg</code> (<code>Foto salva em … ✓ (312 KB)</code>).</li>
+  <li>A escrever o script <code>backup.sh</code> que compacta <code>~/storage/shared/DCIM</code> em <code>~/backup.tar.gz</code>.</li>
+  <li>A agendar a cada 30 minutos: <code>termux-job-scheduler --script ~/backup.sh --period 300000</code> e a linha <code>*/30 * * * *</code> do <code>crontab -l</code>.</li>
+  <li>A conferir o resultado no log: <code>cat backup.log</code> mostra <code>backup concluido</code>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>Passo 1 — liberar o acesso às fotos (storage)</h2>
+<p>Fotos do celular moram em <code>/storage/emulated/0/DCIM</code> — fora da sandbox do Termux. O comando <code>termux-setup-storage</code> cria o link <code>~/storage/dcim</code> (e <code>~/storage/shared</code> para a raiz da memória) depois que você aceita a permissão no Android:</p>
+
+<pre class="term" data-host="android">$ ls ~/storage
+ls: cannot access '/data/data/com.termux/files/home/storage': Permission denied
+(dica: rode termux-setup-storage antes)
+$ termux-setup-storage
+Setting up storage access...
+Links criados em ~/storage:
+  dcim -> /storage/emulated/0/DCIM
+  downloads -> /storage/emulated/0/Download
+  pictures -> /storage/emulated/0/Pictures
+  music -> /storage/emulated/0/Music
+  movies -> /storage/emulated/0/Movies
+  shared -> /storage/emulated/0
+Storage configurado ✓ (aceite a permissão no Android)
+$ ls ~/storage
+dcim  downloads  movies  music  pictures  shared
+$ ls ~/storage/shared
+DCIM  Download  Pictures  Movies  Music</pre>
+
+<div class="warn"><strong>Permissão é por app:</strong> o link existe, mas se você revogar a permissão de "arquivos e mídia" nas configurações do Termux no Android, o <code>ls ~/storage</code> volta a dar <code>Permission denied</code>. Se o backup parar de funcionar do nada, cheque a permissão primeiro — é a causa nº 1 (veja <a href="problemas.html">problemas comuns</a>).</div>
+
+<hr>
+
+<h2>Passo 2 — testar a câmera pelo terminal</h2>
+<p>Antes de automatizar, a Ana testa a Termux-API: o comando <code>termux-camera-photo</code> abre a câmera e salva a foto no caminho indicado (precisa do pacote <code>termux-api</code> instalado e da permissão de câmera aceita — veja <a href="termux-camera.html">termux-camera-photo</a>):</p>
+
+<pre class="term" data-host="android">$ pkg install termux-api
+...
+termux-api instalado ✓
+$ termux-camera-photo ~/foto.jpg
+Foto salva em /data/data/com.termux/files/home/foto.jpg ✓ (312 KB)</pre>
+
+<p>Para o backup automático ela não precisa tirar foto — as fotos já chegam sozinhas quando ela usa a câmera. Esse comando serve para testar se a Termux-API está funcionando (e dá para montar coisa divertida: foto automática quando chegar SMS, por exemplo, com <code>termux-sms-list</code> num script). O que o backup usa de verdade é a pasta <code>~/storage/shared/DCIM</code>, onde o Android salva as fotos da câmera.</p>
+
+<dl class="anatomy">
+  <dt>termux-camera-photo</dt><dd>comando da Termux-API que tira uma foto com a câmera do celular</dd>
+  <dt>~/foto.jpg</dt><dd>o destino: salva na home do Termux (o <code>~</code> é expandido para <code>/data/data/com.termux/files/home</code>)</dd>
+</dl>
+
+<hr>
+
+<h2>Passo 3 — o script backup.sh</h2>
+<p>Agora o coração do projeto: um script shell que compacta a pasta de fotos num <code>.tar.gz</code> na home. A Ana já tem esse arquivo pronto no celular dela:</p>
+
+<pre class="file" data-file="~/backup.sh">#!/data/data/com.termux/files/usr/bin/bash
+# backup.sh — compacta as fotos do celular em ~/backup.tar.gz
+echo "backup iniciado"
+tar -czf ~/backup.tar.gz ~/storage/shared/DCIM
+echo "backup concluido"</pre>
+
+<pre class="term" data-host="android">$ cat backup.sh
+#!/data/data/com.termux/files/usr/bin/bash
+echo "backup iniciado"
+tar -czf ~/backup.tar.gz ~/storage/shared/DCIM
+echo "backup concluido"
+$ chmod +x ~/backup.sh     # no celular real: deixa o script executável
+$ ~/backup.sh
+backup iniciado
+backup concluido</pre>
+
+<dl class="anatomy">
+  <dt>#!/data/data/com.termux/files/usr/bin/bash</dt><dd>"shebang": diz ao sistema que esse arquivo roda com o bash do Termux (esse é o caminho real do bash dentro do app)</dd>
+  <dt>tar -czf ~/backup.tar.gz …</dt><dd>empacota a pasta <code>DCIM</code> num arquivo único comprimido (gzip) — <code>-c</code> cria, <code>-z</code> comprime, <code>-f</code> diz o nome do arquivo</dd>
+  <dt>~/storage/shared/DCIM</dt><dd>a pasta de fotos do celular vista pelo Termux (graças ao <code>termux-setup-storage</code>)</dd>
+  <dt>echo "backup concluido"</dt><dd>marca o fim no log — é essa linha que você vai procurar com <code>cat backup.log</code></dd>
+</dl>
+
+<p>O script é curto de propósito: <strong>automatizar é juntar comandos que você já rodou na mão</strong>. Primeiro a Ana rodou <code>tar -czf ~/backup.tar.gz ~/storage/shared/DCIM</code> sozinha, viu que funcionava, e só então colocou num arquivo.</p>
+
+<hr>
+
+<h2>Passo 4 — agendar a cada 30 minutos</h2>
+<p>Agora a mágica: o script vai rodar <strong>sozinho a cada 30 minutos</strong>. No Termux existem duas formas principais (veja <a href="termux-job-scheduler.html">termux-job-scheduler e crontab</a>):</p>
+
+<p><strong>1. termux-job-scheduler</strong> — o agendador da própria Termux-API, que roda o script mesmo com o app em segundo plano. O período é em <strong>milissegundos</strong>: 30 minutos = 30 × 60 × 1000 = <code>300000</code>:</p>
+
+<pre class="term" data-host="android">$ termux-job-scheduler --script ~/backup.sh --period 300000
+Job agendado (id 1): ~/backup.sh a cada 300000 ms ✓</pre>
+
+<div class="try" data-goal="Job agendado" data-solucao="termux-job-scheduler --script ~/backup.sh --period 300000">
+<p class="try-task"><strong>Missão:</strong> agende o backup no simulador: digite <code>termux-job-scheduler --script ~/backup.sh --period 300000</code> — a saída começa com <code>Job agendado (id 1)</code> e termina com ✓.</p>
+</div>
+
+<dl class="anatomy">
+  <dt>termux-job-scheduler</dt><dd>comando da Termux-API que registra um job periódico no Android (via JobScheduler)</dd>
+  <dt>--script ~/backup.sh</dt><dd>o script que vai rodar a cada período</dd>
+  <dt>--period 300000</dt><dd>o intervalo em milissegundos: 300000 ms = 5 minutos; 1800000 ms = 30 min; 3600000 ms = 1 h</dd>
+</dl>
+
+<p><strong>2. crontab</strong> — o agendador clássico do Linux, que no Termux roda via <code>crond</code>. A linha abaixo já está agendada no celular da Ana e faz a mesma coisa a cada 30 minutos, jogando a saída no log:</p>
+
+<pre class="term" data-host="android">$ crontab -l
+# crontab do Termux (ana@android)
+*/30 * * * * ~/backup.sh >> ~/backup.log 2>&1</pre>
+
+<p>A sintaxe do cron é <code>minuto hora dia mês dia-da-semana comando</code>: <code>*/30 * * * *</code> significa "a cada 30 minutos, toda hora, todo dia". O <code>&gt;&gt; ~/backup.log 2&gt;&1</code> manda a saída do script (e os erros) para o arquivo de log em vez da tela.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Período</th><th>Milissegundos (job-scheduler)</th><th>Cron (crontab)</th></tr>
+<tr><td>a cada 5 min</td><td><code>--period 300000</code></td><td><code>*/5 * * * *</code></td></tr>
+<tr><td>a cada 30 min</td><td><code>--period 1800000</code></td><td><code>*/30 * * * *</code></td></tr>
+<tr><td>a cada 1 hora</td><td><code>--period 3600000</code></td><td><code>0 * * * *</code></td></tr>
+<tr><td>todo dia às 3h</td><td>— (use cron)</td><td><code>0 3 * * *</code></td></tr>
+</table>
+</div>
+
+<div class="warn"><strong>Erro clássico de milissegundos:</strong> no <code>termux-job-scheduler</code> o período é em <strong>ms</strong>, não em segundos: 30 minutos é <code>1800000</code>, não <code>30000</code> (que daria 30 segundos!). O simulador usa <code>300000</code> = 5 minutos só para o exemplo caber na aula — no celular real, para 30 min use <code>--period 1800000</code>.</div>
+
+<hr>
+
+<h2>Passo 5 — conferindo o log: cat backup.log</h2>
+<p>Depois de um tempo com o job rodando, a Ana confere se os backups aconteceram. O log guarda cada execução — cada par de linhas é um backup:</p>
+
+<pre class="term" data-host="android">$ cat backup.log
+backup iniciado
+backup concluido
+backup iniciado
+backup concluido</pre>
+
+<div class="try" data-goal="backup concluido" data-solucao="cat backup.log">
+<p class="try-task"><strong>Missão:</strong> confira o log no simulador: digite <code>cat backup.log</code> — a saída mostra os pares <code>backup iniciado</code> / <code>backup concluido</code>, provando que o job rodou.</p>
+</div>
+
+<p>Se o log não crescer, a escada de diagnóstico é: (1) a permissão do storage ainda está ativa? (<code>ls ~/storage</code>); (2) o script roda na mão? (<code>~/backup.sh</code>); (3) o job está registrado? (no celular real: <code>termux-job-scheduler --list</code>); (4) há espaço no armazenamento? (<code>df -h ~</code>). Quase sempre é a permissão — o Android revoga acesso a fotos de apps em segundo plano se você não usar o app por um tempo.</p>
+
+<hr>
+
+<h2>Passo 6 — fechando o ciclo: o PC puxa o backup</h2>
+<p>O <code>~/backup.tar.gz</code> ainda está no celular. Com o <code>sshd</code> no ar (projeto 3), o PC puxa o backup para uma pasta segura — e dá para colocar esse rsync no cron do <em>PC</em>, criando uma segunda camada de backup automático:</p>
+
+<pre class="term" data-host="android">$ sshd
+Iniciando sshd na porta 8022...
+sshd rodando ✓ — conecte do PC com:
+  ssh ana@192.168.1.42 -p 8022</pre>
+
+<pre class="term">$ # no PC: puxa o backup gerado no celular
+$ rsync -avz -e "ssh -p 8022" ana@192.168.1.42:~/backup.tar.gz ~/Backups/celular/
+sending incremental file list
+backup.tar.gz
+1.204.800 bytes  100%  2.34MB/s
+Sincronizado com o PC ✓</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Peça</th><th>Comando</th><th>O que faz</th></tr>
+<tr><td>Acesso às fotos</td><td><code>termux-setup-storage</code> → <code>ls ~/storage</code></td><td>cria os links em <code>~/storage</code> (dcim, shared, …)</td></tr>
+<tr><td>Foto de teste</td><td><code>termux-camera-photo ~/foto.jpg</code></td><td>tira foto pelo terminal (<code>Foto salva em … ✓ (312 KB)</code>)</td></tr>
+<tr><td>Backup manual</td><td><code>~/backup.sh</code></td><td>compacta <code>~/storage/shared/DCIM</code> em <code>~/backup.tar.gz</code></td></tr>
+<tr><td>Agendar (Termux-API)</td><td><code>termux-job-scheduler --script ~/backup.sh --period 300000</code></td><td>roda o script a cada período em ms (<code>Job agendado (id 1) ✓</code>)</td></tr>
+<tr><td>Agendar (cron)</td><td><code>crontab -l</code></td><td>mostra <code>*/30 * * * * ~/backup.sh &gt;&gt; ~/backup.log 2&gt;&1</code></td></tr>
+<tr><td>Conferir</td><td><code>cat backup.log</code></td><td>mostra <code>backup iniciado</code> / <code>backup concluido</code></td></tr>
+<tr><td>Levar para o PC</td><td><code>rsync -avz -e "ssh -p 8022" ana@192.168.1.42:~/backup.tar.gz ~/Backups/</code></td><td>copia o backup para o notebook (<code>Sincronizado com o PC ✓</code>)</td></tr>
+</table>
+</div>
+
+<div class="warn"><strong>Backup que não foi testado não é backup:</strong> uma vez por mês, restaure o <code>backup.tar.gz</code> numa pasta de teste (<code>tar -xzf backup.tar.gz -C ~/teste-restauracao</code>) e abra algumas fotos. Arquivos compactados corrompem silenciosamente — só o teste de restauração prova que o backup presta. E siga a regra 3-2-1: 3 cópias, 2 mídias diferentes, 1 fora de casa (o PC conta como fora do celular; a nuvem conta como fora de casa).</div>
+
+<div class="warn"><strong>Fotos no tunnel público = desastre:</strong> nunca suba <code>backup.tar.gz</code> ou o DCIM para um túnel ngrok público (projeto 1) — fotos são dados sensíveis. Use só SSH/rsync na rede local (projeto 3) ou um destino privado.</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Fotos ficam acessíveis com <code>termux-setup-storage</code> → <code>ls ~/storage</code> mostra <code>dcim downloads movies music pictures shared</code> (sem isso: <code>Permission denied</code>).</li>
+  <li>Teste a câmera pelo terminal com <code>termux-camera-photo ~/foto.jpg</code> (<code>Foto salva em … ✓ (312 KB)</code>).</li>
+  <li>O <code>backup.sh</code> compacta <code>~/storage/shared/DCIM</code> em <code>~/backup.tar.gz</code> e imprime <code>backup iniciado</code> / <code>backup concluido</code>.</li>
+  <li>Agendamento: <code>termux-job-scheduler --script ~/backup.sh --period 300000</code> (<code>Job agendado (id 1) ✓</code>, período em <strong>ms</strong>) ou cron <code>*/30 * * * * ~/backup.sh &gt;&gt; ~/backup.log 2&gt;&1</code>.</li>
+  <li>Prova de que rodou: <code>cat backup.log</code> mostra os pares <code>backup iniciado</code>/<code>backup concluido</code>.</li>
+  <li>Feche o ciclo com o PC: <code>sshd</code> no celular + <code>rsync -avz -e "ssh -p 8022" ana@192.168.1.42:~/backup.tar.gz ~/Backups/</code> (<code>Sincronizado com o PC ✓</code>).</li>
+  <li>Teste a restauração uma vez por mês — backup não testado não é backup.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="ref-termux.html">Referência — comandos termux-* (cola)</a> — guarde essa cola de comandos para consultar no dia a dia; e depois complete a trilha de referência com <a href="ref-pkg.html">pkg/apt</a>, <a href="ref-adb.html">adb</a>, <a href="ref-erros.html">erros comuns</a>, <a href="glossario.html">glossário</a> e o <a href="quiz.html">quiz</a>.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

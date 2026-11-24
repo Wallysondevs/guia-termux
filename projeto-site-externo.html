@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Projeto 1 — Site no celular acessível de fora (python http.server + ngrok) | Guia Termux</title>
+<meta name="description" content="Projeto prático de Termux: publique um site inteiro rodando no próprio celular Android — crie o index.html em ~/projetos/site, sirva com python -m http.server 8080 (Serving HTTP on 0.0.0.0 port 8080, IP 192.168.1.42 na rede local, verificado com ifconfig e nmap localhost) e abra para a internet com ngrok http 8080, que gera a URL pública https://termux-ana-7f3k.ngrok-free.app. Missão no terminal simulado ana@android com túnel aberto ✓.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Projeto 1 — <span class="hl">site no celular</span> acessível de fora (http.server + ngrok)</h1>
+
+<p class="intro">A ideia deste projeto é simples e poderosa: <strong>o seu celular vira um servidor web</strong>. A Ana escribe um site HTML estático numa pasta do Termux, sobe com <code>python -m http.server 8080</code> e, com um túnel <code>ngrok</code>, qualquer pessoa na internet acessa pelo navegador — mesmo estando atrás do Wi-Fi de casa, sem abrir porta no roteador. É o mesmo truque usado para mostrar um projeto para o cliente em 30 segundos.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A criar a pasta do projeto e o arquivo <code>index.html</code> dentro de <code>~/projetos/site</code>.</li>
+  <li>A servir a pasta com <code>python -m http.server 8080</code> — o servidor fica ouvindo em <code>0.0.0.0:8080</code> (todas as interfaces).</li>
+  <li>A descobrir o IP do celular no Wi-Fi com <code>ifconfig</code> e a confirmar as portas abertas com <code>nmap localhost</code>.</li>
+  <li>A publicar na internet com <code>ngrok http 8080</code>, que gera uma URL pública <code>https://…ngrok-free.app</code>.</li>
+  <li>Os riscos reais de expor uma porta: o que <strong>não</strong> publicar (fotos, documentos, bancos).</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>Passo 1 — criar o site</h2>
+<p>Todo projeto começa com os arquivos. A Ana cria a pasta <code>~/projetos/site</code> e dentro dela um <code>index.html</code> mínimo — repare que o conteúdo é HTML puro, servido "como está" pelo servidor do Python (sem PHP, sem banco: é um <strong>site estático</strong>):</p>
+
+<pre class="file" data-file="~/projetos/site/index.html">&lt;!doctype html&gt;
+&lt;html lang="pt-BR"&gt;
+&lt;head&gt;
+  &lt;meta charset="utf-8"&gt;
+  &lt;title&gt;Site da Ana&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;h1&gt;Oi, eu sou um site rodando no celular! 📱&lt;/h1&gt;
+  &lt;p&gt;Este HTML está em &lt;code&gt;~/projetos/site/index.html&lt;/code&gt;
+  dentro do Termux de um Pixel 7 Pro — e está sendo servido
+  por &lt;code&gt;python -m http.server 8080&lt;/code&gt;.&lt;/p&gt;
+  &lt;p&gt;Acesse de outro dispositivo pelo IP local:
+  &lt;code&gt;http://192.168.1.42:8080&lt;/code&gt;&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;</pre>
+
+<p>No Termux real, a Ana edita esse arquivo com <code>vim ~/projetos/site/index.html</code> ou <code>nano</code> (veja <a href="editores.html">editores no celular</a>), ou transfere do PC por <code>rsync</code>/<code>scp</code> (isso é o projeto 3, <a href="projeto-sync-pc.html">sync celular ↔ PC</a>). O importante é a regra de bolso: <strong>o servidor serve a pasta onde ele foi aberto</strong> — entonces o <code>index.html</code> precisa estar dentro de <code>~/projetos/site</code>.</p>
+
+<div class="warn"><strong>Cuidado com a pasta:</strong> se você rodar <code>python -m http.server 8080</code> dentro de <code>~</code>, o servidor lista <strong>todos</strong> os arquivos da home do Termux (incluindo <code>.ssh</code>, <code>.bashrc</code> etc.) para quem acessar. Rode sempre dentro da pasta do projeto — e nunca sirva a home inteira de propósito.</div>
+
+<hr>
+
+<h2>Passo 2 — instalar o Python e subir o servidor</h2>
+<p>O servidor web aqui é o próprio Python, que já traz um módulo de servidor estático embutido — não precisa instalar nada além do interpretador (veja <a href="pkg-apt.html">pkg e apt</a> e <a href="servidor-web.html">servidor web no celular</a>):</p>
+
+<pre class="term" data-host="android">$ pkg install python
+The following NEW packages will be installed:
+  python
+0 upgraded, 1 newly installed, 0 to remove.
+Setting up python (3.11.9-2) ...
+python instalado ✓
+$ python --version
+Python 3.11.9</pre>
+
+<p>Agora é só entrar na pasta do site e subir o servidor na porta <strong>8080</strong>:</p>
+
+<pre class="term" data-host="android">$ python -m http.server 8080
+Serving HTTP on 0.0.0.0 port 8080 (http://192.168.1.42:8080/ ) ...
+(ctrl+c para parar)</pre>
+
+<dl class="anatomy">
+  <dt>python</dt><dd>o interpretador Python (instalado com <code>pkg install python</code>)</dd>
+  <dt>-m http.server</dt><dd>diz ao Python para rodar o <strong>módulo</strong> <code>http.server</code> como programa — um servidor de arquivos estáticos embutido na biblioteca padrão</dd>
+  <dt>8080</dt><dd>a porta em que ele vai ouvir (poderia ser 3000, 5000, 8000…; 8080 é a convenção)</dd>
+  <dt>0.0.0.0</dt><dd>"todas as interfaces de rede" — o servidor aceita conexões do Wi-Fi <em>e</em> do localhost, não só da máquina local</dd>
+</dl>
+
+<p>Enquanto esse comando estiver rodando, o terminal fica <strong>ocupado</strong> (o servidor roda em primeiro plano). Para desligar, é <kbd>Ctrl</kbd>+<kbd>C</kbd>. Para deixar rodando em segundo plano enquanto você mexe em outra coisa, a Ana usa o <code>tmux</code> (<code>pkg install tmux</code>, depois <code>tmux</code> e roda o servidor numa sessão — <kbd>Ctrl</kbd>+<kbd>B</kbd> depois <kbd>D</kbd> para destacar sem matar).</p>
+
+<hr>
+
+<h2>Passo 3 — testar na rede local</h2>
+<p>Com o servidor no ar, a Ana confere duas coisas: qual é o IP do celular no Wi-Fi e se a porta 8080 realmente abriu. Do próprio celular:</p>
+
+<pre class="term" data-host="android">$ ifconfig
+wlan0: flags=4163&lt;UP,BROADCAST,RUNNING,MULTICAST&gt;
+        inet 192.168.1.42  netmask 255.255.255.0
+        ether dc:a6:32:11:22:33
+
+lo: inet 127.0.0.1
+$ nmap localhost
+Starting Nmap 7.94 (simulado)
+Host 192.168.1.42 is up.
+PORT     STATE SERVICE
+8022/tcp open  ssh
+8080/tcp open  http
+Nmap done: 1 IP address scanned ✓
+$ ping -c 1 8.8.8.8
+PING 8.8.8.8: 56 data bytes
+64 bytes: icmp_seq=0 ttl=117 time=23.4 ms
+1 packets transmitted, 1 packets received, 0.0% packet loss ✓</pre>
+
+<p>O <code>inet 192.168.1.42</code> é o endereço do celular na rede local, e o <code>nmap</code> confirma que a porta <code>8080/tcp</code> está <code>open http</code> (junto com a <code>8022</code> do SSH). Agora, de <strong>qualquer outro dispositivo na mesma rede</strong> — o notebook do sofá, o celular de um amigo conectado no mesmo Wi-Fi — basta abrir o navegador em <code>http://192.168.1.42:8080</code> e o site da Ana aparece.</p>
+
+<div class="warn"><strong>"Funciona no meu Wi-Fi" não é público:</strong> o IP <code>192.168.1.42</code> só existe dentro da rede local. Fora de casa (no 4G, em outra rede), ninguém acessa — e nem dá para abrir porta no roteador sem mexer nele. É exatamente por isso que o passo 4 existe.</div>
+
+<hr>
+
+<h2>Passo 4 — publicar na internet com ngrok</h2>
+<p>O <code>ngrok</code> cria um <strong>túnel reverso</strong>: um servidor público dele recebe as requisições e as entrega para a porta 8080 do seu celular, por uma conexão que o próprio Termux abriu (então o roteador nem precisa ser configurado). Primeiro instala, depois abre o túnel (veja <a href="rede-no-celular.html">VPN, proxy e túnel reverso</a>):</p>
+
+<pre class="term" data-host="android">$ pkg install ngrok
+The following NEW packages will be installed:
+  ngrok
+0 upgraded, 1 newly installed, 0 to remove.
+Setting up ngrok (3.12.1) ...
+ngrok instalado ✓
+$ ngrok http 8080
+Forwarding  https://termux-ana-7f3k.ngrok-free.app -> http://localhost:8080
+Túnel aberto ✓ — seu site no celular está público na internet</pre>
+
+<p>A URL <code>https://termux-ana-7f3k.ngrok-free.app</code> é pública: qualquer pessoa, em qualquer lugar, abre essa地址 e vê o <code>index.html</code> que está no celular da Ana. Na conta gratuita do ngrok a URL muda a cada vez que o túnel abre (e aparece uma página intersticial de aviso); com conta paga dá para reservar um endereço fixo.</p>
+
+<div class="try" data-goal="Túnel aberto ✓" data-solucao="ngrok http 8080">
+<p class="try-task"><strong>Missão:</strong> abra o túnel público no simulador: digite <code>ngrok http 8080</code> — a saída mostra <code>Forwarding https://termux-ana-7f3k.ngrok-free.app -&gt; http://localhost:8080</code> e termina com <code>Túnel aberto ✓</code>.</p>
+</div>
+
+<div class="try" data-goal="Serving HTTP on 0.0.0.0 port 8080" data-solucao="python -m http.server 8080">
+<p class="try-task"><strong>Missão:</strong> suba o servidor web no simulador antes do túnel: digite <code>python -m http.server 8080</code> — a saída começa com <code>Serving HTTP on 0.0.0.0 port 8080</code>.</p>
+</div>
+
+<div class="warn"><strong>Perigo real — o que NÃO publicar:</strong> o túnel deixa <strong>tudo o que está na pasta servida</strong> público na internet, sem senha. Nunca rode o servidor numa pasta com fotos, documentos, bancos de dados, chaves (<code>.ssh</code>) ou o arquivo do bot com o token. Site estático de brincadeira: sim. A pasta <code>~/storage</code> inteira: <strong>nunca</strong>. Veja <a href="seguranca-termux.html">segurança no Termux</a>.</div>
+
+<div class="warn"><strong>URL gratuita muda:</strong> no plano free do ngrok o endereço <code>*.ngrok-free.app</code> é sorteado a cada túnel novo e expira quando você fecha. Para testes e demonstração, perfeito; para algo permanente, use um domínio próprio com túnel pago ou um VPS barato.</div>
+
+<hr>
+
+<h2>Passo 5 — o ciclo completo na prática</h2>
+<p>Juntando tudo, a sessão da Ana fica assim — repare que o servidor e o túnel ficam os dois ligadaos ao mesmo tempo (em terminais separados, ou numa sessão <code>tmux</code>):</p>
+
+<pre class="term" data-host="android">$ python -m http.server 8080
+Serving HTTP on 0.0.0.0 port 8080 (http://192.168.1.42:8080/ ) ...
+(ctrl+c para parar)
+$ ngrok http 8080
+Forwarding  https://termux-ana-7f3k.ngrok-free.app -> http://localhost:8080
+Túnel aberto ✓ — seu site no celular está público na internet</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Camada</th><th>Endereço</th><th>Quem alcança</th></tr>
+<tr><td>Local (só o celular)</td><td><code>http://localhost:8080</code></td><td>só o próprio Termux</td></tr>
+<tr><td>Rede local (Wi-Fi)</td><td><code>http://192.168.1.42:8080</code> (IP de <code>ifconfig</code>)</td><td>qualquer dispositivo no mesmo Wi-Fi</td></tr>
+<tr><td>Internet (túnel)</td><td><code>https://termux-ana-7f3k.ngrok-free.app</code></td><td>qualquer pessoa, em qualquer lugar</td></tr>
+</table>
+</div>
+
+<p>Para desligar tudo: <kbd>Ctrl</kbd>+<kbd>C</kbd> no terminal do servidor e no do ngrok (ou fecha a sessão do tmux). O endereço público morre na hora — o túnel só existe enquanto o comando roda.</p>
+
+<hr>
+
+<h2>Diagnóstico quando o site não abre</h2>
+<p>Deu certo no celular mas o notebook não acessa <code>http://192.168.1.42:8080</code>? Siga a escada, do mais simples para o mais chato (a página <a href="problemas.html">problemas comuns</a> cobre isso no geral):</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Sintoma</th><th>Comando para testar</th><th>Causa provável</th></tr>
+<tr><td>Nada abre, nem no celular</td><td><code>python -m http.server 8080</code> de novo; veja se dá erro de porta ocupada</td><td>Já existe um servidor na 8080 — mude a porta (<code>… 8081</code>) ou mate o processo antigo</td></tr>
+<tr><td>Abre no celular (<code>localhost:8080</code>) mas não no Wi-Fi</td><td><code>ifconfig</code> — confirme o <code>inet</code>; <code>nmap localhost</code> — confirme <code>8080/tcp open</code></td><td>O servidor está ouvindo só em <code>127.0.0.1</code> (versões velhas) ou o IP mudou</td></tr>
+<tr><td>Abre no Wi-Fi mas a URL do ngrok não</td><td><code>ngrok http 8080</code> — veja se imprime <code>Forwarding</code></td><td>O túnel caiu (Ctrl+C, rede oscilou) — abra de novo; a URL free muda a cada vez</td></tr>
+<tr><td>Demora ou não carrega de fora da rede</td><td><code>ping -c 1 8.8.8.8</code> no celular</td><td>Sem internet no celular o túnel não sobe; Wi-Fi fraco derruba o túnel</td></tr>
+</table>
+</div>
+
+<pre class="term" data-host="android">$ ping -c 1 8.8.8.8
+PING 8.8.8.8: 56 data bytes
+64 bytes: icmp_seq=0 ttl=117 time=23.4 ms
+1 packets transmitted, 1 packets received, 0.0% packet loss ✓</pre>
+
+<hr>
+
+<h2>Alternativas ao http.server e ao ngrok</h2>
+<p>O <code>python -m http.server</code> é perfeito para testar e para sites estáticos leves. Para algo mais parrudo no próprio celular, a Ana instala o <strong>nginx</strong> (<code>pkg install nginx</code>), que serve com performance de servidor de verdade, com diretório raiz configurável em <code>$PREFIX/etc/nginx/nginx.conf</code>. E no lugar do ngrok dá para usar o <strong>cloudflared</strong> (túnel da Cloudflare, também gratuito, com URL mais estável) — o simulador aceita os dois com a mesma sintaxe: <code>cloudflared tunnel --url http://localhost:8080</code> abre um endereço <code>*.trycloudflare.com</code>.</p>
+
+<p>Mas para um site que vai ficar no ar de verdade, a lição deste projeto é outra: <strong>o celular é ótimo para prototipar e demonstrar</strong>, mas para produção você migra o mesmo HTML para uma hospedagem barata (GitHub Pages, Netlify, Vercel) — o conteúdo é idêntico, só o endereço muda. O que você aprendeu aqui — servir uma pasta estática numa porta e expor com túnel — é exatamente o que esses serviços fazem nos bastidores.</p>
+
+<div class="note">
+<strong>Por que a porta 8080?</strong> No Android, portas abaixo de 1024 exigem root — por isso o Termux usa 8022 para o SSH e 8080 para web de desenvolvimento. Em produção (Linux/servidor), a porta padrão de HTTP é a 80 e de HTTPS a 443.
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>O celular vira servidor web com <code>python -m http.server 8080</code> rodando <strong>dentro da pasta do site</strong> — a saída é <code>Serving HTTP on 0.0.0.0 port 8080</code>.</li>
+  <li><code>ifconfig</code> mostra o IP no Wi-Fi (<code>inet 192.168.1.42</code>) e <code>nmap localhost</code> confirma a porta aberta (<code>8080/tcp open http</code>).</li>
+  <li>O IP local só vale dentro do Wi-Fi; para a internet, <code>ngrok http 8080</code> abre o túnel <code>https://termux-ana-7f3k.ngrok-free.app</code> (<code>Túnel aberto ✓</code>).</li>
+  <li>O servidor em <code>0.0.0.0</code> aceita conexões de qualquer interface — por isso só sirva pastas de projeto, nunca a home ou o storage.</li>
+  <li>Para rodar em segundo plano use <code>tmux</code>; para parar, <kbd>Ctrl</kbd>+<kbd>C</kbd>. O túnel público morre junto com o comando.</li>
+  <li>Próximo projeto: um processo que <strong>não pode parar</strong> — o bot de Telegram 24/7.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="projeto-bot-telegram.html">Projeto 2 — Bot de Telegram rodando no Termux 24/7</a> — instale o Python, pegue o token no BotFather e deixe o bot no ar com wake lock.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

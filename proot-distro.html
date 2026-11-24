@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>proot-distro: Ubuntu/Debian dentro do Termux, sem root | Guia Termux</title>
+<meta name="description" content="proot-distro no Termux: instale e rode distribuições Linux completas (Ubuntu 24.04, Debian, Alpine, Arch) dentro do Android usando proot — sem root, com apt próprio e acesso aos arquivos do Termux. Comandos proot-distro list, install, login e reset, exemplos na máquina ana@android (root@localhost:~#), tabela comparativa Termux puro vs proot e missões no terminal simulado. Próxima aula: wake-lock.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">proot-distro</span>: um Ubuntu inteiro dentro do Termux, sem root</h1>
+<p class="intro">O Termux já tem um apt próprio e roda a maioria dos programas Linux. Mas e se você precisar de um <strong>Debian/Ubuntu de verdade</strong> — com os repositórios oficiais, pacotes que não foram recompilados para Android, ou simplesmente um ambiente idêntico ao do seu servidor? A resposta é o <strong>proot-distro</strong>: ele baixa um "bootstrap" de uma distro e entra nela com <em>proot</em> (uma camada de翻译 de chamadas de sistema), <strong>sem precisar de root</strong>. Nesta aula, a Ana instala e entra num Ubuntu 24.04 dentro do próprio celular.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é o <strong>proot</strong> e por que ele funciona sem root (diferente de um chroot de verdade);</li>
+  <li><code>proot-distro list</code>: quais distros estão instaladas e quais dá para instalar;</li>
+  <li><code>proot-distro install debian</code>: baixar e instalar uma distro nova;</li>
+  <li><code>proot-distro login ubuntu</code>: entrar na distro (o prompt vira <code>root@localhost:~#</code>);</li>
+  <li>Dentro da distro: <code>apt update</code>, instalar pacotes, acessar <code>~/storage</code>;</li>
+  <li>Quando usar Termux puro vs. proot-distro, e os limites do proot.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>O que é o proot (e por que não precisa de root)</h2>
+<p>Num Linux normal, para isolar um sistema dentro de outro você usa <code>chroot</code> — que exige root. O Android não dá root para apps comuns, então o Termux usa o <strong>proot</strong>: uma biblioteca que intercepta as chamadas de sistema do programa (<code>open</code>, <code>chroot</code> falso, etc.) e as redireciona, <em>em espaço de usuário</em>. O resultado prático: dentro do proot, o Ubuntu "acha" que é o sistema inteiro — com o próprio <code>/etc</code>, o próprio <code>apt</code> e o próprio <code>root</code> — mas tudo acontece dentro do Termux, sem privilégios especiais no Android.</p>
+<pre class="term">$ pkg install proot
+...
+proot instalado ✓
+$ pkg install proot-distro
+...
+proot-distro instalado ✓</pre>
+<p>O pacote <code>proot</code> é a engine; o <code>proot-distro</code> é o comando bonitinho que baixa, instala e entra nas distros. Com os dois instalados, é só usar.</p>
+
+<hr>
+
+<h2><code>proot-distro list</code>: o que já está instalado</h2>
+<p>O primeiro comando é ver a lista — na máquina da Ana já existe um <strong>ubuntu-24.04</strong> instalado, e dá para instalar outras:</p>
+<pre class="term">$ proot-distro list
+Instaladas:
+  ubuntu-24.04
+Disponíveis: debian, alpine, archlinux, fedora, void</pre>
+<dl class="anatomy">
+  <dt>Instaladas</dt><dd>as distros já baixadas, prontas para entrar com <code>login</code> — no caso, <code>ubuntu-24.04</code>.</dd>
+  <dt>Disponíveis</dt><dd>as distros que dá para instalar agora com <code>proot-distro install &lt;nome&gt;</code>.</dd>
+</dl>
+
+<hr>
+
+<h2><code>proot-distro install</code>: baixar uma distro nova</h2>
+<p>Para instalar, basta passar o nome da lista "Disponíveis". O comando baixa o bootstrap (o sistema de arquivos mínimo da distro), descompacta e confirma:</p>
+<pre class="term">$ proot-distro install debian
+Installing debian...
+Downloading bootstrap... done.
+debian instalado ✓ — entre com: proot-distro login debian</pre>
+<p>O bootstrap de uma distro mínima tem algumas dezenas de MB — depois o <code>apt</code> dela baixa o resto pela internet. Repare na dica no fim da saída: depois de instalar, o comando de entrar é <code>proot-distro login &lt;nome&gt;</code>.</p>
+
+<div class="warn"><strong>Espaço em disco:</strong> cada distro ocupa algumas centenas de MB depois de installed + pacotes. Celular com pouco espaço livre vai sentir — cheque com <code>df -h ~</code> antes de instalar várias distros. E se uma instalação quebrar no meio, <code>proot-distro reset &lt;nome&gt;</code> apaga e recria a distro do zero.</div>
+
+<hr>
+
+<h2><code>proot-distro login</code>: entrando no Ubuntu</h2>
+<p>Entrar é o momento mágico: o prompt muda de <code>ana@android:~$</code> para <code>root@localhost:~#</code> — dentro da distro, você é root (mas um root "de mentira", preso dentro do proot):</p>
+<pre class="term">$ proot-distro login ubuntu
+Entrando no ubuntu...
+root@localhost:~# (proot — sem root real, mas com apt completo)
+root@localhost:~# apt update
+...
+root@localhost:~# cat /etc/os-release
+PRETTY_NAME="Ubuntu 24.04 LTS"
+root@localhost:~# exit
+ana@android:~$</pre>
+<p>Dentro do Ubuntu, tudo é Ubuntu: o <code>apt</code> instala os pacotes dos repositórios oficiais do Ubuntu (<code>apt install htop</code>, <code>apt install python3</code>...), o <code>/etc/os-release</code> confirma a versão, e os arquivos do Termux continuam acessíveis — inclusive <code>~/storage/shared</code>, se o <a href="storage.html">termux-setup-storage</a> já foi rodado. Para sair, é o <code>exit</code> de sempre, que devolve o prompt <code>ana@android:~$</code>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando</th><th>O que faz</th><th>Saída típica</th></tr>
+<tr><td><code>proot-distro list</code></td><td>lista instaladas e disponíveis</td><td><code>ubuntu-24.04</code> em "Instaladas"</td></tr>
+<tr><td><code>proot-distro install debian</code></td><td>baixa e instala a distro</td><td><code>debian instalado ✓</code></td></tr>
+<tr><td><code>proot-distro login ubuntu</code></td><td>entra na distro (prompt vira <code>root@localhost:~#</code>)</td><td><code>root@localhost:~# (proot ...)</code></td></tr>
+<tr><td><code>proot-distro reset ubuntu</code></td><td>apaga e recria a distro do zero</td><td><code>ubuntu resetado ✓</code></td></tr>
+<tr><td><code>exit</code> (dentro da distro)</td><td>volta para o Termux</td><td>prompt <code>ana@android:~$</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Termux puro vs. proot-distro: quando usar cada um</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>Termux puro (<code>pkg</code>)</th><th>proot-distro (Ubuntu/Debian)</th></tr>
+<tr><td>Pacotes</td><td>repositório próprio do Termux, compilados para Android (aarch64)</td><td>repositórios oficiais da distro — mesmos pacotes do servidor</td></tr>
+<tr><td>Root</td><td>não tem root no Android</td><td>root dentro da distro, mas <strong>sem root real</strong> no Android (proot)</td></tr>
+<tr><td>Hardware</td><td>acesso direto via Termux-API (câmera, GPS, lanterna)</td><td>sem acesso ao hardware do Android</td></tr>
+<tr><td>Armazenamento</td><td><code>~/storage</code> com setup</td><td>mesmo <code>~/storage</code>, herdado do Termux</td></tr>
+<tr><td>Performance</td><td>nativo, rápido</td><td>um pouco mais lento (camada proot)</td></tr>
+<tr><td>Uso típico</td><td>dia a dia no celular, Termux-API, apps Android</td><td>rodar software de servidor idêntico ao VPS, testar tutoriais de Ubuntu</td></tr>
+</table>
+</div>
+
+<div class="warn"><strong>Limites do proot (importante):</strong> dentro do proot você <strong>não tem root de verdade no Android</strong> — não dá para mexer em <code>/system</code>, ler dados de outros apps ou usar hardware diretamente. Também nem todo programa funciona (coisas que precisam de kernel especial, contêineres dentro do proot, algumas operações de rede baixo nível). Para o uso normal — compilar código, rodar um servidor, seguir um tutorial de Ubuntu — funciona perfeitamente.</div>
+
+<hr>
+
+<h2>Missões no simulador</h2>
+<p>Na máquina <code>ana@android</code>, veja a distro instalada e entre nela:</p>
+
+<div class="try" data-goal="ubuntu-24.04" data-solucao="proot-distro list">
+<p class="try-task"><strong>Missão:</strong> liste as distros com <code>proot-distro list</code> — a saída mostra <code>ubuntu-24.04</code> em "Instaladas" e as disponíveis (debian, alpine, archlinux...). Tente também <code>proot-distro install debian</code>.</p>
+</div>
+
+<div class="try" data-goal="root@localhost:~#" data-solucao="proot-distro login ubuntu">
+<p class="try-task"><strong>Missão:</strong> entre no Ubuntu com <code>proot-distro login ubuntu</code> — o prompt muda para <code>root@localhost:~#</code> (proot, sem root real, mas com apt completo).</p>
+</div>
+
+<hr>
+
+<h2>Gerenciando a distro: <code>reset</code> e várias distros</h2>
+<p>Dá para ter várias distros ao mesmo tempo — um Ubuntu para o dia a dia e um Alpine (levíssimo) para testar containers:</p>
+<pre class="term">$ proot-distro install alpine
+Installing alpine...
+Downloading bootstrap... done.
+alpine instalado ✓ — entre com: proot-distro login alpine
+$ proot-distro list
+Instaladas:
+  ubuntu-24.04
+  alpine
+Disponíveis: debian, archlinux, fedora, void</pre>
+<p>Se uma distro "quebrou" (pacotes conflitantes, espaço estourado, bagunça geral), não precisa apagar na mão: o <code>proot-distro reset &lt;nome&gt;</code> apaga tudo e recria do bootstrap limpo:</p>
+<pre class="term">$ proot-distro reset ubuntu
+ubuntu resetado ✓</pre>
+
+<div class="warn"><strong>Dentro do proot, o root é de mentira:</strong> o prompt <code>root@localhost:~#</code> parece root de verdade, mas é o proot fingindo. Nada dentro da distro alcança o sistema Android real: sem acesso a <code>/system</code>, sem alterar apps instalados e sem privilégios no kernel — os comandos <code>termux-*</code> continuam funcionando (eles conversam com o app Termux:API), mas o resto do Android segue protegido. Se um tutorial mandar você rodar algo como <code>mount</code> ou mexer em <code>/dev</code>, dentro do proot isso falha ou é simulado.</div>
+
+<hr>
+
+<h2>Qual distro escolher?</h2>
+<p>A lista "Disponíveis" do <code>proot-distro list</code> muda com o tempo, mas o perfil de cada uma é sempre o mesmo:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Distro</th><th>Perfil</th><th>Melhor para</th></tr>
+<tr><td><code>ubuntu-24.04</code></td><td>LTS, maior repositório, tutoriais infinitos</td><td>rodar exatamente o que roda no seu VPS Ubuntu</td></tr>
+<tr><td><code>debian</code></td><td>estável, enxuta, mãe de muitas distros</td><td>servidores leves e scripts que o tutorial manda "apt install"</td></tr>
+<tr><td><code>alpine</code></td><td>mínima (~5 MB), usa apk em vez de apt</td><td>containers, testes rápidos, pouco espaço</td></tr>
+<tr><td><code>archlinux</code></td><td>rolling release, tudo recentíssimo</td><td>quem gosta de viver no limite (e do pacman)</td></tr>
+<tr><td><code>fedora</code> / <code>void</code></td><td>alternativas com outros gerenciadores (dnf / xbps)</td><td>aprender outros empacotadores</td></tr>
+</table>
+</div>
+<p>O fluxo completo para começar do zero numa distro nova: <code>proot-distro install ubuntu</code> → <code>proot-distro login ubuntu</code> → dentro dela, <code>apt update &amp;&amp; apt upgrade</code> → instalar o que precisar → <code>exit</code> para voltar ao Termux. E se quiser guardar a distro antes de um <code>reset</code>, dá para empacotar a pasta dela (fica em <code>~/.proot-distro/installed/&lt;nome&gt;</code>) com <code>tar</code> — o mesmo truque do <code>backup.sh</code>.</p>
+
+<hr>
+
+<h2>Storage dentro da distro: a mesma home</h2>
+<p>Uma dúvida comum: "dentro do Ubuntu, eu vejo as fotos do celular?". A resposta é sim — o proot compartilha a home do Termux, então <code>~/storage</code> continua valendo lá dentro (depois do <a href="storage.html">termux-setup-storage</a>):</p>
+<pre class="term">root@localhost:~# ls ~/storage
+dcim  downloads  movies  music  pictures  shared
+root@localhost:~# ls ~/projetos
+backup.sh  notas.txt</pre>
+<p>Isso é ouro para automação: um script dentro do Ubuntu consegue empacotar a galeria do celular, sincronizar com o PC ou processar as fotos com python — tudo vendo os mesmos arquivos do Termux. O que <em>não</em> é compartilhado é o resto do sistema Android: a distro tem o próprio <code>/etc</code>, o próprio <code>apt</code> e o próprio <code>/root</code>, isolado do Termux.</p>
+
+<div class="warn"><strong>Login numa distro que não existe:</strong> num celular real, <code>proot-distro login nome-que-nao-instalei</code> dá erro e lista as instaladas. O comando certo é sempre <code>proot-distro list</code> primeiro — no simulador, o <code>proot-distro login ubuntu</code> já mostra o prompt <code>root@localhost:~#</code> com a aviso de que é proot.</div>
+
+<hr>
+
+<h2>Um script que usa o Ubuntu dentro do Termux</h2>
+<p>O uso mais comum do proot-distro na prática é rodar algo que só existe nos repositórios da distro. Em vez de entrar e sair na mão toda vez, dá para chamar direto:</p>
+<pre class="file" data-file="roda-no-ubuntu.sh">#!/data/data/com.termux/files/usr/bin/bash
+# roda um comando dentro do Ubuntu sem sair do Termux
+proot-distro login ubuntu --isolated --fix-low-ports -- /bin/bash -c "
+  apt update -qq
+  apt install -y cowsay
+  cowsay 'oi do Ubuntu dentro do Termux!'
+"
+termux-toast "fim da distro ✓"</pre>
+<p>Repare no detalhe: <code>proot-distro login ubuntu -- ...</code> executa o comando e já sai, sem mudar o seu prompt — ideal para scripts. No simulador, o equivalente é o <code>proot-distro login ubuntu</code> que vimos, que devolve <code>root@localhost:~#</code>.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>proot-distro</code> roda distros Linux (Ubuntu, Debian, Alpine, Arch...) dentro do Termux usando <strong>proot</strong> — sem root no Android.</li>
+  <li><code>proot-distro list</code> mostra instaladas (<code>ubuntu-24.04</code>) e disponíveis; <code>install &lt;nome&gt;</code> baixa a distro.</li>
+  <li><code>proot-distro login ubuntu</code> entra na distro: prompt <code>root@localhost:~#</code>, apt próprio, arquivos do Termux acessíveis; <code>exit</code> volta.</li>
+  <li>Dentro da distro você tem root <em>de mentira</em>: nada de acesso ao sistema Android real.</li>
+  <li>Use Termux puro para o dia a dia + Termux-API; use proot-distro para software idêntico ao de um servidor Ubuntu/Debian.</li>
+  <li>Cada distro ocupa centenas de MB — cheque <code>df -h ~</code>; <code>proot-distro reset &lt;nome&gt;</code> recria do zero.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="wake-lock.html">wake lock</a> — segurar a CPU e a tela ligadas com <code>termux-wake-lock</code> para o servidor/backup rodar de madrugada.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

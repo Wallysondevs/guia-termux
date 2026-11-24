@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editores no celular: vim, nano e VS Code (code-server / Acode) no Termux | Guia Termux</title>
+<meta name="description" content="Editores de texto no Termux: instale vim e nano com pkg, aprenda os comandos essenciais de cada um (modo插入, :w, :q, Ctrl+O, Ctrl+X), edite scripts de automação como o ~/backup.sh e conheça o VS Code no celular via code-server (localhost no navegador) ou o app Acode — com exemplos na máquina ana@android e missões no terminal simulado. Próxima aula (Nível 3): root no Android.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">Editores no celular</span>: vim, nano e VS Code no Termux</h1>
+<p class="intro">Você já escreveu scripts como o <code>~/backup.sh</code> — mas no celular, editar com o quê? Nesta aula você instala os dois editores de terminal clássicos (<strong>vim</strong> e <strong>nano</strong>) com o <code>pkg</code> e aprende os comandos mínimos para não travar neles, além de conhecer as opções gráficas para editar com conforto: o <strong>code-server</strong> (VS Code rodando no próprio celular, aberto no navegador) e o app <strong>Acode</strong>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Instalar editores: <code>pkg install vim nano</code>;</li>
+  <li>Abrir e sair do <code>vim</code> sem travar: <code>i</code>, <code>Esc</code>, <code>:w</code>, <code>:q</code>, <code>:wq</code>, <code>:q!</code>;</li>
+  <li>O <code>nano</code>, mais amigável: <code>Ctrl+O</code> salva, <code>Ctrl+X</code> sai;</li>
+  <li>Editar o <code>~/backup.sh</code> e criar <code>notas.txt</code> no terminal;</li>
+  <li>VS Code no celular: <code>code-server</code> no navegador via localhost + o app Acode.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>Instalando os editores</h2>
+<p>Tudo começa com o <a href="pkg-apt.html">pkg</a>. Vim e nano são pacotes pequenos e já vêm prontos para Android:</p>
+<pre class="term">$ pkg install vim nano
+The following NEW packages will be installed:
+  vim nano
+...
+vim instalado ✓
+nano instalado ✓
+$ pkg search vim
+nano/stable 7.2 nano
+vim/stable 9.1.0 vim
+...</pre>
+<p>O <code>pkg search vim</code> mostra os pacotes que têm "vim" no nome — dá para usar para descobrir variantes (ex.: <code>vim-python</code>).</p>
+
+<hr>
+
+<h2>vim: o editor que todo servidor tem</h2>
+<p>O <code>vim</code> é o editor padrão de praticamente todo Linux — incluindo servidores que você acessa por <a href="sshd.html">SSH</a>. No celular ele é essencial porque é leve e já vem em quase todo lugar. Abrindo um arquivo:</p>
+<pre class="term">$ vim notas.txt
+(simulado) editor vim aberto — :q para sair 😄</pre>
+<p>O grande drama do vim é <strong>sair dele</strong>. A regra de ouro: o vim tem "modos". Ele abre no <em>modo normal</em> (onde teclas são comandos), e para escrever você entra no <em>modo de inserção</em>:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tecla/comando</th><th>Modo</th><th>O que faz</th></tr>
+<tr><td><code>i</code></td><td>normal → inserção</td><td>entra no modo de escrita (antes do cursor)</td></tr>
+<tr><td><code>Esc</code></td><td>volta ao normal</td><td>sai do modo de escrita — <strong>sempre aperte Esc antes de salvar/sair</strong></td></tr>
+<tr><td><code>:w</code> + Enter</td><td>normal</td><td>salva o arquivo (<strong>w</strong>rite)</td></tr>
+<tr><td><code>:q</code> + Enter</td><td>normal</td><td>sai (<strong>q</strong>uit) — só funciona se não houver alterações não salvas</td></tr>
+<tr><td><code>:wq</code> + Enter</td><td>normal</td><td>salva e sai de uma vez</td></tr>
+<tr><td><code>:q!</code> + Enter</td><td>normal</td><td>sai <strong>sem salvar</strong> (o "!" força) — cuidado!</td></tr>
+<tr><td><code>dd</code> / <code>yy</code> / <code>p</code></td><td>normal</td><td>apaga linha / copia linha / cola</td></tr>
+<tr><td><code>u</code></td><td>normal</td><td>desfaz (undo)</td></tr>
+</table>
+</div>
+
+<div class="warn"><strong>O clássico "não consigo sair do vim":</strong> se você digitou texto e tenta <code>:q</code>, o vim reclama (<code>E37: No write since last change</code>) porque tem alterações não salvas. A sequência de fuga é: <code>Esc</code> → <code>:q!</code> → Enter (sai sem salvar) ou <code>Esc</code> → <code>:wq</code> → Enter (salva e sai). No simulador, o vim abre e fecha com <code>:q</code> direto, mas num celular real essa tabela vale ouro.</div>
+
+<hr>
+
+<h2>nano: o editor amigável</h2>
+<p>Se o vim intimida, o <code>nano</code> é o oposto: as teclas ficam escritas no rodapé da tela (<code>^O Write Out</code>, <code>^X Exit</code>) e o <code>Ctrl</code> no terminal do celular é o botão <strong>Ctrl</strong> do Termux (ou o atalho de teclado Bluetooth):</p>
+<pre class="term">$ nano notas.txt
+(simulado) editor nano aberto — :q para sair 😄</pre>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Atalho</th><th>Significado</th><th>O que faz</th></tr>
+<tr><td><code>Ctrl+O</code> + Enter</td><td>Write Out</td><td>salva o arquivo (pede confermação do nome)</td></tr>
+<tr><td><code>Ctrl+X</code></td><td>Exit</td><td>sai — se houver alteração não salva, pergunta se quer salvar</td></tr>
+<tr><td><code>Ctrl+K</code></td><td>Cut</td><td>recorta a linha inteira</td></tr>
+<tr><td><code>Ctrl+U</code></td><td>Uncut</td><td>cola o que foi recortado</td></tr>
+<tr><td><code>Ctrl+W</code></td><td>Search</td><td>procura um texto no arquivo</td></tr>
+</table>
+</div>
+<p>Para o dia a dia no celular, o nano é o suficiente: abrir, editar o <code>backup.sh</code>, salvar, sair. Guarde o vim para quando você precisar dele num servidor remoto (a quase todo VPS tem vim e nem sempre tem nano).</p>
+
+<hr>
+
+<h2>Editando seus scripts no terminal</h2>
+<p>Editar no celular não é só para notas — é para ajustar os scripts de automação que vimos (<a href="termux-job-scheduler.html">job-scheduler</a>, <a href="wake-lock.html">wake lock</a>). O fluxo típico da Ana: abrir o script, mudar uma linha, salvar, deixar o cron fazer o resto:</p>
+<pre class="term">$ vim backup.sh
+(simulado) editor vim aberto — :q para sair 😄
+$ cat backup.sh
+#!/data/data/com.termux/files/usr/bin/bash
+echo "backup iniciado"
+tar -czf ~/backup.tar.gz ~/storage/shared/DCIM
+echo "backup concluido"
+$ crontab -l
+# crontab do Termux (ana@android)
+*/30 * * * * ~/backup.sh >> ~/backup.log 2>&1</pre>
+<p>Repare que o <code>crontab -l</code> continua apontando para o <code>~/backup.sh</code> — ou seja, qualquer mudança que você salvar no editor vale na próxima execução automática, sem reiniciar nada.</p>
+
+<hr>
+
+<h2>VS Code no celular: code-server e Acode</h2>
+<p>Terminal é bom, mas às vezes você quer editor com sintaxe colorida, autocompletar e interface gráfica. Duas opções populares no Termux:</p>
+<ul>
+  <li><strong>code-server</strong> (VS Code rodando como servidor): instale com <code>npm install -g code-server</code> (depois de <code>pkg install nodejs</code>), rode <code>code-server --port 8080</code> e abra <code>http://localhost:8080</code> no navegador do próprio celular — você terá o VS Code inteiro, com acesso aos arquivos do Termux. Combine com o <a href="wake-lock.html">wake lock</a> para editar de madrugada sem a tela apagar.</li>
+  <li><strong>Acode</strong>: um app editor de código para Android (instale pela F-Droid) com plugin que abre um terminal Termux embutido — você edita o arquivo com interface gráfica e roda os comandos no terminal de baixo.</li>
+</ul>
+<pre class="term">$ pkg install nodejs
+...
+nodejs instalado ✓
+$ node --version
+v20.11.1
+$ npm install -g code-server   # no Termux real
+$ code-server --port 8080      # abre o VS Code em http://localhost:8080</pre>
+
+<div class="warn"><strong>code-server pede senha:</strong> por padrão ele gera uma senha e mostra no terminal (ou em <code>~/.config/code-server/config.yaml</code>) — anote antes de abrir no navegador. E rodando só em <code>localhost</code>, ele não fica exposto na internet; se for expor fora de casa, use túnel (<a href="rede-no-celular.html">ngrok</a>) com senha forte.</div>
+
+<hr>
+
+<h2>Missões no simulador</h2>
+<p>Na máquina <code>ana@android</code>, abra os dois editores:</p>
+
+<div class="try" data-goal="editor vim aberto" data-solucao="vim notas.txt">
+<p class="try-task"><strong>Missão:</strong> abra o vim com <code>vim notas.txt</code> — a saída mostra <code>(simulado) editor vim aberto — :q para sair 😄</code>.</p>
+</div>
+
+<div class="try" data-goal="editor nano aberto" data-solucao="nano notas.txt">
+<p class="try-task"><strong>Missão:</strong> agora abra o nano com <code>nano notas.txt</code> — a saída mostra <code>editor nano aberto</code>. Depois instale os dois de verdade no simulador: <code>pkg install vim nano</code>.</p>
+</div>
+
+<hr>
+
+<h2>Teclado no celular: onde fica o Ctrl e o Esc?</h2>
+<p>Editor de terminal no celular vive ou morre pelos atalhos de teclado. No Termux, a barra de teclas extras (acima do teclado virtual) traz <code>Esc</code>, <code>Ctrl</code>, <code>Alt</code>, setas e <code>:w</code> — deslize essa barra ou segure <code>Vol+</code> para ver as teclas extras. Atalhos úteis:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Atalho</th><th>Equivalente</th><th>Uso</th></tr>
+<tr><td><code>Vol+</code> ( segura )</td><td>abre a barra de teclas extras</td><td>acessar <code>Esc</code>, <code>Ctrl</code>, setas, <code>|</code>, <code>~</code></td></tr>
+<tr><td><code>Vol-</code> + tecla</td><td><code>Ctrl</code> + tecla</td><td>no nano: <code>Ctrl+O</code> salva; no vim: combinações de comando</td></tr>
+<tr><td>teclado Bluetooth</td><td>teclado de PC</td><td>para editar a sério, um teclado dobrável + celular é um setup adorável</td></tr>
+<tr><td>tap longo no botão do Termux</td><td>menu de contexto</td><td>colar texto, abrir nova sessão, acessar configurações</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Versionando suas notas e scripts com git</h2>
+<p>Depois de editar bastante, você vai querer histórico ("quem apagou aquela linha do backup.sh?"). O <code>git</code> funciona normal no Termux:</p>
+<pre class="term">$ pkg install git
+...
+git instalado ✓
+$ cd ~/projetos
+$ git init
+Initialized empty Git repository in /data/data/com.termux/files/home/projetos/.git/
+$ git add backup.sh
+$ git commit -m "backup da DCIM a cada 30 min"
+[main (root-commit) abc1234] backup da DCIM a cada 30 min</pre>
+<p>Com isso, cada alteração no script editado no vim/nano fica registrada — e dá para sincronizar com um repositório remoto (GitHub) ou com o PC via <a href="projeto-sync-pc.html">rsync/ssh</a>. Editar + versionar no próprio celular fecha o ciclo: o Termux vira uma máquina de desenvolvimento completa, não só um terminal.</p>
+
+<hr>
+
+<h2>vim ou nano: qual escolher?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>vim</th><th>nano</th></tr>
+<tr><td>Curva de aprendizado</td><td>íngreme (modos!) — mas vale cada minuto</td><td>plana: os atalhos estão na tela</td></tr>
+<tr><td>Onde você encontra</td><td>em todo servidor Linux (SSH remoto)</td><td>na maioria, mas nem sempre</td></tr>
+<tr><td>Potência</td><td>edição programável, macros, splits</td><td>edição direta, suficiente pro dia a dia</td></tr>
+<tr><td>Para o celular</td><td>melhor com teclado Bluetooth</td><td>melhor com teclado virtual + barra extra</td></tr>
+<tr><td>Regra prática</td><td>aprenda o básico (tabela acima) e use quando precisar</td><td>use para editar scripts rápidos no celular</td></tr>
+</table>
+</div>
+
+<div class="warn"><strong>Erros reais ao editar no celular:</strong> (1) arquivo "somente leitura" — cheque as permissões (<code>ls -l</code>); (2) salvar em cima de arquivo do sistema dá erro — edite só dentro de <code>~</code>; (3) no vim, apertar teclas no modo normal "bagunça" o texto — <code>Esc</code> + <code>u</code> (undo) salva; (4) teclado virtual cobrindo a linha de comando do editor — use a barra de teclas extras do Termux ou um teclado Bluetooth.</div>
+
+<hr>
+
+<h2>Anatomia do vim: os dois modos</h2>
+<p>O conceito que destrava o vim é que ele tem <strong>dois modos</strong> e você alterna entre eles:</p>
+<dl class="anatomy">
+  <dt>modo normal</dt><dd>teclas são comandos (<code>dd</code> apaga, <code>yy</code> copia, <code>:w</code> salva). É o modo inicial.</dd>
+  <dt>modo de inserção</dt><dd>teclas escrevem texto de verdade — entra com <code>i</code> (ou <code>a</code>), sai com <code>Esc</code>.</dd>
+  <dt>linha de comando</dt><dd>começa com <code>:</code> no modo normal — <code>:w</code> (salva), <code>:q</code> (sai), <code>:wq</code> (salva e sai), <code>:q!</code> (sai sem salvar).</dd>
+</dl>
+<p>A regra de ouro para nunca travar: <strong>Esc antes de qualquer coisa</strong> — se você não sabe em que modo está, aperte <code>Esc</code> (voltar ao normal nunca estraga nada) e aí rode <code>:wq</code> ou <code>:q!</code>.</p>
+
+<hr>
+
+<h2>Criando um script do zero no celular</h2>
+<p>O fluxo completo que você vai viver: abrir o editor, escrever o script, salvar, dar permissão de execução e rodar — tudo pelo terminal do celular:</p>
+<pre class="file" data-file="meu-primeiro-script.sh">#!/data/data/com.termux/files/usr/bin/bash
+echo "meu primeiro script no Termux"
+termux-toast "rodei pelo terminal ✓"
+date</pre>
+<pre class="term">$ nano ~/meu-primeiro-script.sh
+(simulado) editor nano aberto — :q para sair 😄
+$ chmod +x ~/meu-primeiro-script.sh
+$ ~/meu-primeiro-script.sh
+(simulado) script rodaria aqui — no celular real, a saída apareceria na hora
+$ crontab -l   # e dá para agendar!
+# crontab do Termux (ana@android)
+*/30 * * * * ~/backup.sh >> ~/backup.log 2>&1</pre>
+<p>Esse é o ciclo de vida de um script no Termux: <strong>editar → salvar → executar → agendar</strong>. Com vim ou nano no terminal, code-server no navegador ou Acode com interface gráfica, o celular deixa de ser só um consumidor de conteúdo e vira uma máquina de criar.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>pkg install vim nano</code> instala os dois editores de terminal no Termux.</li>
+  <li>vim: <code>i</code> entra no modo de escrita, <code>Esc</code> volta, <code>:w</code> salva, <code>:q</code> sai, <code>:wq</code> salva e sai, <code>:q!</code> sai sem salvar.</li>
+  <li>nano: <code>Ctrl+O</code> salva, <code>Ctrl+X</code> sai — mais amigável para começar.</li>
+  <li>Edite scripts como o <code>~/backup.sh</code> direto no terminal; o <code>crontab</code> já usa a versão salva na próxima execução.</li>
+  <li>VS Code no celular: <code>code-server</code> via npm, abrindo <code>http://localhost:8080</code> no navegador; ou o app <strong>Acode</strong> com terminal embutido.</li>
+  <li>O vim é obrigatória para servidores remotos — vale decorar a tabela de teclas.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="root-su.html">root no Android (Nível 3 · Avançado): su, Magisk e os riscos</a> — o que muda quando o celular inteiro (não só o Termux) fica sob seu controle.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

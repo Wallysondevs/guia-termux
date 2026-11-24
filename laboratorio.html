@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laboratório ético no próprio celular: nmap e ferramentas de rede no Termux | Guia Termux</title>
+<meta name="description" content="Monte um lab de segurança ética no próprio celular rootado: instale ferramentas com pkg install nmap (e aircrack-ng), escaneie só localhost/redes próprias com nmap localhost (8022 ssh, 8080 http abertos), entenda o que é um teste de invasão autorizado, a ética hacker e os limites da lei — com missões no terminal simulado ana@android (Pixel 7 Pro rootado).">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">Laboratório ético</span> no próprio celular</h1>
+
+<p class="intro">Com o Pixel 7 Pro rootado, o Termux vira um <strong>laboratório de segurança portátil</strong>: dá para instalar o <code>nmap</code>, escanear portas, testar a própria rede Wi-Fi e estudar como um invasor pensa — <strong>sem sair do celular e sem machucar ninguém</strong>. O limite é a ética e a lei: neste capítulo você monta esse lab do jeito certo, escaneando <em>somente o próprio aparelho e redes suas ou expressamente autorizadas</em>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Por que o próprio celular é o melhor alvo de estudo: <code>nmap localhost</code> mostra suas portas (8022 ssh, 8080 http);</li>
+  <li>Instalar ferramentas de rede no Termux: <code>pkg install nmap</code> (e <code>aircrack-ng</code> para Wi-Fi);</li>
+  <li>O que é um <strong>teste de invasão autorizado</strong> (pentest) e a diferença entre hacker ético e criminoso;</li>
+  <li>A regra de ouro da lei brasileira (Lei 12.737/2012, Lei Carolina Dieckmann): invadir sistema de terceiro <em>sem autorização</em> é crime;</li>
+  <li>Montar um lab seguro: alvo próprio, rede isolada, CTFs e plataformas como Hack The Box/TryHackMe;</li>
+  <li>Praticar no terminal simulado <code>ana@android</code>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>Seu primeiro alvo de estudo: você mesmo</h2>
+<p>A melhor máquina para aprender segurança é aquela que você pode quebrar sem consequence nenhuma: <strong>o seu próprio celular</strong>. O comando <code>nmap localhost</code> escaneia as portas do próprio aparelho (127.0.0.1) e já revela o que um invasor veria se conseguisse entrar na sua rede:</p>
+<pre class="term" data-host="android">$ nmap localhost
+Starting Nmap 7.94 (simulado)
+Host 192.168.1.42 is up.
+PORT     STATE SERVICE
+8022/tcp open  ssh
+8080/tcp open  http
+Nmap done: 1 IP address scanned ✓</pre>
+<p>Essas duas portas abertas são velhas conhecidas nossas: a <strong>8022</strong> é o <code>sshd</code> (aula <a href="sshd.html">sshd no Termux</a>) e a <strong>8080</strong> é o servidor web Python (aula <a href="servidor-web.html">Servidor web no celular</a>). Pense como um defensor: cada porta aberta é uma porta da sua casa destrancada. Se a 8022 não precisasse estar aberta, o correto seria desligar o <code>sshd</code> quando não usar — <strong>superfície de ataque mínima</strong>.</p>
+<dl class="anatomy">
+  <dt>nmap</dt><dd>o "canivete suíço" do administrador de redes: escaneia portas, serviços e versões em um alvo</dd>
+  <dt>localhost</dt><dd>o próprio aparelho (127.0.0.1) — o alvo 100% seguro para começar</dd>
+</dl>
+
+<hr>
+
+<h2>Instalando as ferramentas: <code>pkg install nmap</code></h2>
+<p>O Termux traz o repositório inteiro de ferramentas de segurança — o mesmo <code>pkg</code> que instala o Python instala o nmap. Na máquina da Ana:</p>
+<pre class="term" data-host="android">$ pkg update
+Get:1 https://packages.termux.dev/apt/termux-main stable InRelease
+Reading package lists... Done
+$ pkg install nmap
+The following NEW packages will be installed:
+  nmap
+0 upgraded, 1 newly installed, 0 to remove.
+Setting up nmap (7.94) ...
+nmap instalado ✓</pre>
+<p>Outros pacotes clássicos de um lab ético no Termux: <code>aircrack-ng</code> (auditoria de Wi-Fi — só na sua rede!), <code>curl</code> e <code>git</code> (clonar labs e scripts), <code>sqlite</code>/<code>postgresql</code> (guardar resultados), <code>tmux</code> (várias sessões de scan ao mesmo tempo) e <code>openssh</code> (cliente SSH para participar de CTFs remotos).</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Pacote</th><th>Para que serve no lab</th><th>Alvo permitido</th></tr>
+<tr><td><code>nmap</code></td><td>descobrir portas e serviços abertos</td><td>localhost, seu IP, redes autorizadas</td></tr>
+<tr><td><code>aircrack-ng</code></td><td>auditar a senha do seu próprio Wi-Fi</td><td>somente seu roteador</td></tr>
+<tr><td><code>curl</code></td><td>testar APIs e respostas HTTP</td><td>seus servidores, APIs públicas com permissão</td></tr>
+<tr><td><code>hydra</code>/<code>nc</code></td><td>testar força de senhas em <em>seus</em> serviços</td><td>seus próprios servidores</td></tr>
+<tr><td><code>tcpdump</code></td><td>capturar pacotes (precisa de root)</td><td>tráfego do próprio aparelho</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Ética e lei: a linha que você não cruza</h2>
+<p>Existe uma palavra que separa o profissional de segurança do criminoso: <strong>autorização</strong>. No Brasil, invadir dispositivo ou sistema de outra pessoa sem permissão é crime (Lei 12.737/2012 — "Lei Carolina Dieckmann" — pena de reclusão de 6 meses a 2 anos, aumentada se houver dano ou obtenção de dados). Escanear o Wi-Fi do vizinho "para ver se é seguro" é invasão, mesmo com boa intenção. O caminho ético e legal:</p>
+<ul>
+  <li><strong>Alvo próprio</strong>: seu celular, seu roteador, suas máquinas virtuais — com <code>nmap localhost</code> e scans no seu IP;</li>
+  <li><strong>Autorização por escrito</strong>: pentest profissional sempre começa com contrato autorizando o teste em horário e escopo definidos;</li>
+  <li><strong>CTFs e labs</strong>: plataformas como Hack The Box, TryHackMe e VulnHub entregam máquinas <em>feitas para serem atacadas</em> — nelas você pode usar o nmap, o aircrack e tudo o que aprender aqui, sem crime;</li>
+  <li><strong>Bug bounty</strong>: empresas como Google, Apple e bancos pagam para você reportar falhas <em>nos sistemas delas</em>, dentro das regras publicadas — é o jeito legal de ganhar dinheiro hackeando;</li>
+  <li><strong>Divulgação responsável</strong>: achou uma falha num site? Avise o dono em privado primeiro, não publique exploit antes do patch.</li>
+</ul>
+
+<div class="warning">
+<strong>O root do seu Pixel não dá permissão para atacar os outros.</strong> Ter root no próprio celular é para estudar e proteger; usar esse poder contra redes ou sistemas de terceiros — Wi-Fi do vizinho, site de empresa, conta de outra pessoa — é crime, mesmo que você "só esteja testando". A comunidade de segurança vive da confiança: quem invade sem autorização perde reputação, emprego e pode parar na polícia. Faça o lab em casa, no CTF, no bug bounty.
+</div>
+
+<hr>
+
+<h2>Um roteiro de estudo seguro no próprio celular</h2>
+<p>Um mini-roteiro que você pode fazer agora mesmo, 100% dentro da lei, para treinar o olhar de defensor:</p>
+<pre class="term" data-host="android">$ nmap localhost                 # que portas minhas estão abertas?
+$ nmap -sV localhost              # quais versões de serviço rodam aqui?
+$ ss -tlnp                        # quem está ouvindo em quais portas?
+$ cat ~/backup.sh                 # o script agendado está seguro?
+$ crontab -l                      # o que roda sozinho no meu celular?</pre>
+<p>Depois vire o jogo: desligue o que não precisa (<code>sv down sshd</code>, mate o <code>python -m http.server</code> esquecido) e rescaneie — menos portas abertas = menos porta de entrada. Esse hábito, de manter só o necessário ligado, é a defesa mais barata e eficiente que existe.</p>
+
+<hr>
+
+<h2>Wi-Fi: auditando o seu próprio roteador</h2>
+<p>Com root no celular, o Termux instala o <code>aircrack-ng</code> — o conjunto clássico para auditoria de redes Wi-Fi. O uso ético e legal é <strong>testar a senha do seu próprio roteador</strong> para saber se ela resiste a um ataque de dicionário. O fluxo (resumido e só para a sua rede):</p>
+<pre class="term" data-host="android">$ pkg install aircrack-ng
+...
+aircrack-ng instalado ✓
+# com root, o modo monitor captura handshakes do SEU roteador
+$ airodump-ng wlan0 --bssid AA:BB:CC:DD:EE:FF -c 6 -w ~/captura
+# depois testa a senha fraca no handshake capturado (offline)
+$ aircrack-ng -w /usr/share/wordlists/rockyou.txt ~/captura-01.cap</pre>
+<p>Se o seu Wi-Fi caiu nesse teste, a lição é: use <strong>WPA3</strong> (ou WPA2 com senha longa) no roteador — WEP e WPA com senha curta caem em minutos. E jamais aponte essas ferramentas para a rede do vizinho: além de crime, é inútil — o tráfico dele não é seu alvo legítimo.</p>
+
+<hr>
+
+<h2>Documentando: todo teste vira relatório</h2>
+<p>Profissional de segurança não é quem acha brecha — é quem <strong>documenta e comunica</strong> direito. No seu lab, acostume-se a guardar a saída de cada comando num arquivo de notas (no Termux, com o <code>vim</code> — aula <a href="editores.html">editores</a>):</p>
+<pre class="file" data-file="~/projetos/lab/notas.md"># Lab 2024-05-12 — alvo: próprio Pixel 7 Pro (localhost)
+- nmap localhost → 8022/tcp open ssh, 8080/tcp open http
+- ação: desligar http.server quando não usar (menos superfície)
+- sshd_config: PasswordAuthentication no, só chave
+- próximo: testar WPA3 no roteador de casa</pre>
+<p>Esse hábito — alvo, achados, ação corretiva, data — é exatamente o formato de um relatório de pentest profissional. Treine agora no celular e, quando for fazer CTF ou bug bounty, você já sabe escrever o relatório que o cliente paga para ler.</p>
+
+<hr>
+
+<h2>Onde praticar legalmente: CTFs e plataformas</h2>
+<p>Quer ir além do próprio celular? Existem plataformas feitas exatamente para isso — máquinas e redes <em>criadas para serem atacadas</em>, com permissão implícita:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Plataforma</th><th>O que é</th><th>Bom para começar com</th></tr>
+<tr><td><strong>TryHackMe</strong></td><td>Trilhas guiadas ("rooms") de segurança ofensiva e defensiva</td><td>curso "Pre Security" e "Complete Beginner" — roda tudo no navegador, sem instalar nada</td></tr>
+<tr><td><strong>Hack The Box</strong></td><td>Máquinas reais para invadir (com sistema de pontos e ranking)</td><td>máquinas "Starting Point" e "Easy"; conecte pelo Termux com <code>openvpn</code>/SSH</td></tr>
+<tr><td><strong>VulnHub</strong></td><td>Máquinas virtuais para baixar e atacar localmente no PC</td><td>instale no VirtualBox e ataque pela sua rede local</td></tr>
+<tr><td><strong>OverTheWire (Bandit/Wargames)</strong></td><td>Desafios de terminal puro (Linux, SSH, permissões)</td><td>Bandit: jogue <code>ssh bandit0@bandit.labs.overthewire.org -p 2220</code> direto do Termux</td></tr>
+<tr><td><strong>PicoCTF / CTF do Brasil</strong></td><td>Competições mensais com desafios de iniciante</td><td>web, criptografia, forense — muitos rodam só com <code>curl</code> no Termux</td></tr>
+</table>
+</div>
+<p>Do celular, o fluxo é o mesmo de um PC: <code>pkg install openssh</code>, conecte na VPN da plataforma (Hack The Box manda um arquivo <code>.ovpn</code> — no Termux use o <code>openvpn</code> ou o app OpenVPN) e ataque as máquinas pelo terminal. O Termux vira seu "console de pentest" de bolso.</p>
+
+<hr>
+
+<h2>Pratique no lab da Ana</h2>
+
+<div class="try" data-goal="nmap instalado ✓" data-solucao="pkg install nmap">
+<p class="try-task"><strong>Missão:</strong> instale a ferramenta de scan com <code>pkg install nmap</code> ( rode <code>pkg update</code> antes se quiser treinar o fluxo completo) e confirme a linha <code>nmap instalado ✓</code>.</p>
+</div>
+
+<div class="try" data-goal="Nmap done" data-solucao="nmap localhost">
+<p class="try-task"><strong>Missão:</strong> escaneie o próprio celular com <code>nmap localhost</code> e encontre as portas <code>8022/tcp open ssh</code> e <code>8080/tcp open http</code> na saída <code>Nmap done: 1 IP address scanned ✓</code>.</p>
+</div>
+
+<div class="try" data-goal="8022/tcp open" data-solucao="nmap localhost">
+<p class="try-task"><strong>Missão:</strong> rode o scan de novo e repare na linha <code>8022/tcp open  ssh</code> — é o seu servidor SSH aberto no próprio aparelho. Pergunta de defensor: essa porta precisava estar aberta agora? Se não, desligue o <code>sshd</code>.</p>
+</div>
+
+<hr>
+
+<h2>O lab nunca para: pratique um pouco todo dia</h2>
+<p>Segurança ofensiva se aprende na prática, não na teoria — mas sempre dentro da lei. Dez minutos por dia no seu próprio celular (escanear portas, ler logs, desligar o que não precisa) valem mais do que um mês inteiro de vídeos. Combine com um CTF de iniciante (TryHackMe, OverTheWire Bandit) e, quando o celular rootado for pouco, migre para uma máquina virtual no PC com Kali Linux — a aula <a href="proot-distro.html">proot-distro</a> mostra como ter um Ubuntu/Debian completo dentro do próprio Termux como ponte.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>O melhor alvo de estudo é o próprio aparelho: <code>nmap localhost</code> mostra 8022 (ssh) e 8080 (http) abertas.</li>
+  <li>Ferramentas vêm pelo próprio <code>pkg</code>: <code>pkg install nmap</code>, <code>aircrack-ng</code>, <code>tcpdump</code>…</li>
+  <li>Ética/lei: invadir sistema de terceiro sem autorização é crime (Lei 12.737/2012) — use alvo próprio, CTFs e bug bounty.</li>
+  <li>Defesa barata: desligue o que não usa (menos portas abertas = menos ataque).</li>
+  <li>Root no próprio celular serve para estudar e proteger — nunca para atacar os outros.</li>
+  <li>Monitore o lab com <code>crontab -l</code>, <code>htop</code> e <code>ss -tlnp</code>.</li>
+</ul>
+
+<p>Três regras para nunca esquecer: <strong>(1)</strong> alvo próprio ou autorizado, sempre; <strong>(2)</strong> menos portas abertas = menos ataque; <strong>(3)</strong> documente tudo — o que você não anota, não existiu.</p>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="projetos.html">Projetos práticos</a> — hora de juntar tudo: site no celular publicado com ngrok, bot de Telegram rodando no Termux, sincronização celular ↔ PC com rsync e backup automático de fotos.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

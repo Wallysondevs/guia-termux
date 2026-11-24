@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Servidor web no celular: python -m http.server 8080 | Guia Termux</title>
+<meta name="description" content="Rode um servidor web no próprio celular com python -m http.server 8080: veja o IP do aparelho com ifconfig (inet 192.168.1.42), acesse http://192.168.1.42:8080 de outro aparelho na mesma Wi-Fi, sirva a pasta de fotos ~/storage/shared/DCIM, entenda o Ctrl+C para parar e como deixar rodando em segundo plano com tmux/nohup. Pratique no terminal simulado.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Servidor web <span class="hl">no celular</span>: python -m http.server 8080</h1>
+
+<p class="intro">Um comando, e o celular da Ana vira um site na rede local: <code>python -m http.server 8080</code>. Qualquer aparelho na mesma Wi-Fi abre <code>http://192.168.1.42:8080</code> no navegador e vê os arquivos da pasta atual — fotos, projetos, o que estiver lá. Nesta aula você liga o servidor, descobre o IP do celular com <code>ifconfig</code>, acessa de outro aparelho, para com <kbd>Ctrl</kbd>+<kbd>C</kbd> e aprende a deixar rodando em segundo plano.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li><code>python -m http.server 8080</code> — o servidor web de uma linha só (já vem com o Python).</li>
+  <li>A saída <code>Serving HTTP on 0.0.0.0 port 8080</code> e o que o <code>0.0.0.0</code> significa.</li>
+  <li>Descobrir o IP do celular na Wi-Fi: <code>ifconfig</code> → <code>inet 192.168.1.42</code>.</li>
+  <li>Acessar de outro aparelho: <code>http://192.168.1.42:8080</code> no navegador.</li>
+  <li>Servir a pasta de fotos: <code>cd ~/storage/shared/DCIM/Camera</code> antes de ligar.</li>
+  <li>Parar com <kbd>Ctrl</kbd>+<kbd>C</kbd> e deixar rodando com <code>tmux</code> / <code>nohup</code>.</li>
+  <li>Limite: é um servidor de desenvolvimento, não de produção (sem HTTPS, sem controle de acesso).</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>Ligando o servidor</h2>
+<p>O Python já vem instalado (aula <a href="pkg-apt.html">pkg/apt</a>); o módulo <code>http.server</code> é da biblioteca padrão — não precisa instalar nada:</p>
+
+<div class="try" data-goal="Serving HTTP on 0.0.0.0 port 8080" data-solucao="python -m http.server 8080">
+<p class="try-task"><strong>Missão:</strong> digite <code>python -m http.server 8080</code> e aperte <kbd>Enter</kbd>. A saída deve começar com <code>Serving HTTP on 0.0.0.0 port 8080</code>.</p>
+</div>
+
+<pre class="term" data-host="android">$ python -m http.server 8080
+Serving HTTP on 0.0.0.0 port 8080 (http://192.168.1.42:8080/ ) ...
+(ctrl+c para parar)</pre>
+
+<dl class="anatomy">
+  <dt>python</dt><dd>O interpretador Python 3.11.9 (instalado com <code>pkg install python</code>).</dd>
+  <dt>-m http.server</dt><dd>"rode o módulo http.server" — um servidor HTTP estático embutido na biblioteca padrão.</dd>
+  <dt>8080</dt><dd>A porta. Portas abaixo de 1024 exigem root, então no Termux usamos 8080 (o padrão do módulo é 8000).</dd>
+  <dt>0.0.0.0</dt><dd>"escute em <strong>todas</strong> as interfaces de rede" — Wi-Fi, localhost, etc. Se fosse <code>127.0.0.1</code>, só o próprio celular acessaria.</dd>
+</dl>
+
+<p>Enquanto o comando roda, o terminal fica <strong>ocupado</strong> (é um processo em primeiro plano) e cada acesso imprime uma linha de log:</p>
+
+<pre class="term" data-host="android">$ python -m http.server 8080
+Serving HTTP on 0.0.0.0 port 8080 (http://192.168.1.42:8080/ ) ...
+192.168.1.10 - - [24/05/2024 14:32:11] "GET / HTTP/1.1" 200 -
+192.168.1.10 - - [24/05/2024 14:32:15] "GET /foto.jpg HTTP/1.1" 200 -</pre>
+
+<hr>
+
+<h2>Qual é o meu IP? ifconfig</h2>
+<p>Para acessar de outro aparelho, você precisa do <strong>IP do celular na Wi-Fi</strong>. O comando clássico é o <code>ifconfig</code> (ou <code>ip addr</code>):</p>
+
+<div class="try" data-goal="inet 192.168.1.42" data-solucao="ifconfig">
+<p class="try-task"><strong>Missão:</strong> rode <code>ifconfig</code> numa caixa nova e ache a linha <code>inet 192.168.1.42</code> — esse é o endereço do Pixel da Ana na rede local.</p>
+</div>
+
+<pre class="term" data-host="android">$ ifconfig
+wlan0: flags=4163&lt;UP,BROADCAST,RUNNING,MULTICAST&gt;
+        inet 192.168.1.42  netmask 255.255.255.0
+        ether dc:a6:32:11:22:33
+
+lo: inet 127.0.0.1</pre>
+
+<p>Procure a interface <code>wlan0</code> (o Wi-Fi): o campo <code>inet</code> traz o IP — no caso da Ana, <code>192.168.1.42</code>. (<code>lo</code> é o "localhost" interno, <code>127.0.0.1</code>, que só o próprio celular enxerga.)</p>
+
+<div class="warn"><strong>O IP pode mudar:</strong> cada roteador entrega IPs dinamicamente (DHCP). Se o celular reconectar no Wi-Fi, o IP pode virar <code>192.168.1.57</code>, por exemplo. Sempre confira com <code>ifconfig</code> antes de conectar — ou configure um IP fixo/DHCP reservation no roteador para o MAC <code>dc:a6:32:11:22:33</code> do celular.</div>
+
+<hr>
+
+<h2>Acessando de outro aparelho</h2>
+<p>Com o servidor no ar, pegue o <strong>notebook, tablet ou outro celular</strong> na mesma Wi-Fi e abra no navegador:</p>
+
+<pre class="term">http://192.168.1.42:8080</pre>
+
+<p>Vai aparecer uma listagem automática de arquivos (o "directory listing" do http.server) — é a pasta onde o comando foi rodado. Clicou numa foto? O navegador mostra. Clicou num <code>.zip</code>? Ele baixa. Clicou num <code>.mp4</code>? Toca direto no navegador.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Endereço</th><th>Quem acessa</th></tr>
+<tr><td>Servidor na home do Termux</td><td><code>http://192.168.1.42:8080</code></td><td>qualquer aparelho da mesma Wi-Fi</td></tr>
+<tr><td>Somente o próprio celular</td><td><code>http://127.0.0.1:8080</code> (ou <code>localhost:8080</code>)</td><td>só o Android da Ana</td></tr>
+<tr><td>Da internet de fora</td><td>precisa de túnel (ngrok) — nível 3/projetos</td><td>qualquer lugar do mundo</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Servindo as fotos: cd antes de ligar</h2>
+<p>O http.server serve <strong>a pasta atual</strong>. Então, para mostrar as fotos da câmera na rede, entre na pasta primeiro (com o storage já configurado — aula <a href="storage.html">storage</a>):</p>
+
+<pre class="term" data-host="android">$ cd ~/storage/shared/DCIM/Camera
+$ python -m http.server 8080
+Serving HTTP on 0.0.0.0 port 8080 (http://192.168.1.42:8080/ ) ...
+« agora http://192.168.1.42:8080 lista as fotos: IMG_20240501.jpg, VID_20240503.mp4…</pre>
+
+<p>Isso é útil para <strong>ver as fotos do celular na TV/notebook sem mandar por WhatsApp</strong>: liga o servidor na pasta das fotos e abre no navegador da TV conectada na mesma Wi-Fi.</p>
+
+<pre class="term" data-host="android">$ cd ~/projetos/meu-site
+$ ls
+index.html  style.css  foto.png
+$ python -m http.server 8080
+Serving HTTP on 0.0.0.0 port 8080 ...</pre>
+
+<p>Também é o jeito padrão de <strong>testar um site que você fez no celular</strong> antes de subir para a internet: rode o servidor na pasta do projeto e abra no navegador de outro aparelho.</p>
+
+<hr>
+
+<h2>Parando e deixando rodando em segundo plano</h2>
+<p>O servidor roda em <strong>primeiro plano</strong>: se você apertar <kbd>Ctrl</kbd>+<kbd>C</kbd>, ele morre na hora:</p>
+
+<pre class="term" data-host="android">$ python -m http.server 8080
+Serving HTTP on 0.0.0.0 port 8080 (http://192.168.1.42:8080/ ) ...
+^C
+$ _</pre>
+
+<p>Para deixar rodando mesmo fechando o Termux ou perdendo a conexão SSH, use uma das duas Strategien:</p>
+
+<pre class="term" data-host="android">$ nohup python -m http.server 8080 > ~/server.log 2>&1 &
+[1] 1234
+$ cat ~/server.log
+Serving HTTP on 0.0.0.0 port 8080 (http://192.168.1.42:8080/ ) ...
+$ kill %1        « ou: kill 1234 — mata o processo quando quiser parar</pre>
+
+<pre class="term" data-host="android">$ tmux new -s web
+« dentro do tmux:
+$ python -m http.server 8080
+« pode fechar o app: a sessão tmux continua viva no celular
+« para voltar depois: tmux attach -t web</pre>
+
+<dl class="anatomy">
+  <dt>nohup … &</dt><dd>"no hang up": o comando ignora o sinal de desconexão e roda em segundo plano (<code>&</code>).</dd>
+  <dt>&gt; ~/server.log 2>&1</dt><dd>Redireciona a saída normal (<code>&gt;</code>) e os erros (<code>2&gt;&1</code>) para o arquivo de log.</dd>
+  <dt>tmux</dt><dd>Multiplexador de terminais: mantém sessões vivas mesmo sem tela (ideal no celular).</dd>
+</dl>
+
+<hr>
+
+<h2>Conferindo as portas abertas: nmap localhost</h2>
+<p>Quer saber quais servidores estão rodando no celular agora? O <code>nmap</code> escaneia o próprio aparelho:</p>
+
+<pre class="term" data-host="android">$ nmap localhost
+Starting Nmap 7.94 (simulado)
+Host 192.168.1.42 is up.
+PORT     STATE SERVICE
+8022/tcp open  ssh
+8080/tcp open  http
+Nmap done: 1 IP address scanned ✓</pre>
+
+<p><code>8022/tcp open ssh</code> é o servidor da aula <a href="sshd.html">sshd</a>; <code>8080/tcp open http</code> é o servidor web desta aula. O <code>ping</code> básico também confirma que o celular está na rede:</p>
+
+<pre class="term" data-host="android">$ ping -c 1 8.8.8.8
+PING 8.8.8.8: 56 data bytes
+64 bytes: icmp_seq=0 ttl=117 time=23.4 ms
+1 packets transmitted, 1 packets received, 0.0% packet loss ✓</pre>
+
+<hr>
+
+<h2>Variantes: outra porta, só localhost, e servidor com Node</h2>
+<p>O <code>http.server</code> aceita opções na hora de ligar:</p>
+
+<pre class="term" data-host="android">$ python -m http.server 9000            « outra porta
+Serving HTTP on 0.0.0.0 port 9000 (http://192.168.1.42:9000/ ) ...
+$ python -m http.server 8080 --bind 127.0.0.1   « só o próprio celular acessa
+Serving HTTP on 127.0.0.1 port 8080 ...</pre>
+
+<p>Se instalou o <code>nodejs</code> (aula <a href="pkg-apt.html">pkg/apt</a>), dá para servir com ele também — útil quando o projeto já é em JavaScript:</p>
+
+<pre class="file" data-file="~/projetos/meu-site/server.js">const http = require("http");
+const fs = require("fs");
+
+http.createServer((req, res) =&gt; {
+  res.end(fs.readFileSync("index.html"));
+}).listen(8080, "0.0.0.0", () =&gt; console.log("no ar em 8080"));
+</pre>
+
+<pre class="term" data-host="android">$ node server.js
+no ar em 8080
+« de outro aparelho na Wi-Fi: http://192.168.1.42:8080</pre>
+
+<div class="warn"><strong>Segurança na rede local:</strong> qualquer aparelho na mesma Wi-Fi vê o que o servidor serve — inclusive a listagem da pasta se não houver <code>index.html</code>. Se a pasta tiver documentos sensíveis, rode com <code>--bind 127.0.0.1</code> (só o celular acessa) ou sirva uma pasta só com o que pode ser público. E lembre: HTTP não é criptografado — na Wi-Fi de casa tudo bem; em rede pública, não exponha nada.</div>
+
+<h3>Para a internet de verdade: ngrok (preview)</h3>
+<p>Mais tarde, nos projetos, você vai expor esse servidor para a internet com túnel reverso:</p>
+
+<pre class="term" data-host="android">$ pkg install ngrok
+$ ngrok http 8080
+Forwarding  https://termux-ana-7f3k.ngrok-free.app -&gt; http://localhost:8080
+Túnel aberto ✓ — seu site no celular está público na internet</pre>
+
+<p>Isso publica <code>http://192.168.1.42:8080</code> num endereço público HTTPS — igual a um servidor de verdade, saindo do seu bolso.</p>
+
+<hr>
+
+<h2>Testando do próprio celular: curl</h2>
+<p>Antes de chamar outro aparelho, teste se o servidor responde — o <code>curl</code> faz uma requisição HTTP e mostra a resposta:</p>
+
+<pre class="term" data-host="android">$ pkg install curl
+curl instalado ✓
+$ curl -I http://127.0.0.1:8080
+HTTP/1.0  200 OK
+Server: SimpleHTTP/0.6 Python/3.11.9
+Content-type: text/html
+$ curl http://192.168.1.42:8080 | head -8
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;&lt;title&gt;Directory listing for /&lt;/title&gt;&lt;/head&gt;
+&lt;body&gt;
+&lt;h1&gt;Directory listing for /&lt;/h1&gt;
+&lt;hr&gt;</pre>
+
+<p>Se o <code>curl</code> responde <code>200 OK</code>, o servidor está no ar e servindo. Se recusar conexão (<code>Connection refused</code>), o servidor não está rodando (ou está em outra porta).</p>
+
+<div class="warn"><strong>Erro clássico: "Address already in use"</strong> — você ligou o <code>python -m http.server 8080</code> duas vezes (ou esqueceu que uma sessão tmux já tinha um na 8080). A segunda tentativa morre com <code>OSError: [Errno 98] Address already in use</code>. Solução: mate o processo antigo (<kbd>Ctrl</kbd>+<kbd>C</kbd> na sessão certa, ou <code>kill %1</code>) ou use outra porta (<code>python -m http.server 8081</code>).</div>
+
+<div class="warn"><strong>Se outro aparelho não acessa:</strong> cheque a trinca — (1) celular e o outro aparelho na <strong>mesma Wi-Fi</strong>; (2) IP certo (<code>ifconfig</code> no celular, campo <code>inet</code>); (3) porta certa no navegador (<code>:8080</code>). Firewall de roteador bloqueando dispositivo-para-dispositivo é comum em Wi-Fi de visitante — teste primeiro com o <code>curl</code> no próprio celular.</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>python -m http.server 8080</code> liga um servidor web na pasta atual — saída: <code>Serving HTTP on 0.0.0.0 port 8080</code>.</li>
+  <li><code>0.0.0.0</code> = todas as interfaces; o IP real vem do <code>ifconfig</code> (<code>inet 192.168.1.42</code> no <code>wlan0</code>).</li>
+  <li>De outro aparelho na mesma Wi-Fi: abra <code>http://192.168.1.42:8080</code> no navegador.</li>
+  <li>Serve o que estiver na pasta: <code>cd ~/storage/shared/DCIM/Camera</code> para fotos, <code>cd ~/projetos/meu-site</code> para um site.</li>
+  <li><kbd>Ctrl</kbd>+<kbd>C</kbd> mata o processo; <code>nohup … &</code> ou <code>tmux</code> deixa rodando em segundo plano.</li>
+  <li>É servidor de desenvolvimento (sem HTTPS/acesso restrito); para expor na internet, veja <code>ngrok</code> nos projetos.</li>
+  <li><code>nmap localhost</code> mostra as portas abertas: <code>8022/tcp open ssh</code>, <code>8080/tcp open http</code>.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="bancos-local.html">Banco de dados local (sqlite3, PostgreSQL no Termux)</a> — guardar dados do seu app no próprio celular com <code>sqlite3 meu.db</code> e <code>psql</code>.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

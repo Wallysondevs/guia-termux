@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Performance no Termux: hardware do Pixel 7 Pro, htop, zram/swap e SSD via OTG | Guia Termux</title>
+<meta name="description" content="Tune de performance no Termux: conheça o hardware do Pixel 7 Pro (Snapdragon 8 Gen 2, 8 GB de RAM) com termux-info, monitore processos com htop (MEM 3.1/8 GB), entenda zram e swap no Android, use um SSD/pendrive via OTG para projetos pesados e mantenha os pacotes atualizados com pkg upgrade — com missões no terminal simulado ana@android.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">Performance</span>: o que o seu celular aguenta rodar</h1>
+
+<p class="intro">Um <strong>Pixel 7 Pro é um computador de bolso</strong>: Snapdragon 8 Gen 2, 8 GB de RAM e 128 GB de storage. Nesta aula você aprende a <strong>ler o hardware pelo terminal</strong> (<code>termux-info</code>), a <strong>monitorar processos em tempo real</strong> (<code>htop</code>), a entender a memória virtual do Android (<strong>zram/swap</strong>) e a usar um <strong>SSD ou pendrive via OTG</strong> para projetos pesados — tudo testado no terminal simulado <code>ana@android</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Ler o hardware do celular com <code>termux-info</code>: CPU, RAM, storage, modelo e Android;</li>
+  <li>Monitorar CPU/RAM em tempo real com <code>htop</code> e interpretar <code>3.1/8 GB</code>;</li>
+  <li>O que é <strong>zram</strong> (RAM comprimida) e quando o Android recorre a swap;</li>
+  <li>Expandir o storage com <strong>SSD/pendrive via cabo OTG</strong> e montar no Termux;</li>
+  <li>Manter o Termux rápido: <code>pkg upgrade</code>, limpeza de cache e processos travados;</li>
+  <li>Praticar no terminal simulado <code>ana@android</code>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>Conheça o hardware: <code>termux-info</code></h2>
+<p>Antes de otimizar, meça. O <code>termux-info</code> imprime um resumo do aparelho e do ambiente Termux — no Pixel da Ana:</p>
+<pre class="term" data-host="android">$ termux-info
+TERMUX_VERSION=0.118.0
+ANDROID_VERSION=14
+CPU: Snapdragon 8 Gen 2
+RAM total: 8 GB
+Storage: 128 GB
+Shell: /data/data/com.termux/files/usr/bin/bash
+Device: Pixel 7 Pro (rooted)</pre>
+<p>O que cada linha diz na prática:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>Significado</th><th>Por que importa para performance</th></tr>
+<tr><td><code>CPU: Snapdragon 8 Gen 2</code></td><td>SoC de 2022, 1 núcleo prime + 4 performance + 3 eficiência</td><td>roda compilação (gcc, rust) e servidores tranquilamente</td></tr>
+<tr><td><code>RAM total: 8 GB</code></td><td>memória física do aparelho</td><td>com htop você vê quanto sobra: <code>3.1/8 GB</code></td></tr>
+<tr><td><code>Storage: 128 GB</code></td><td>armazenamento interno (UFS)</td><td>rápido; OTG adiciona mais via USB</td></tr>
+<tr><td><code>ANDROID_VERSION=14</code></td><td>versão do Android</td><td>define quais APIs e otimizações o kernel aplica</td></tr>
+<tr><td><code>Device: Pixel 7 Pro (rooted)</code></td><td>modelo + estado de root</td><td>root permite tuning extra (governor de CPU, zram)</td></tr>
+</table>
+</div>
+<p>Compare com um celular de entrada (2 GB de RAM): aí cada processo extra dói. Saber o hardware diz o que dá para rodar — no Pixel 7 Pro dá para segurar <code>sshd</code> + servidor web + banco de dados + um script de backup ao mesmo tempo sem drama.</p>
+
+<hr>
+
+<h2>Monitorando em tempo real: <code>htop</code></h2>
+<p>O <code>htop</code> é o painel de controle vivo dos processos: barras de CPU por núcleo, uso de memória, swap e a lista de processos ordenada por consumo. Instale com <code>pkg install htop</code> e rode:</p>
+<pre class="term" data-host="android">$ pkg install htop
+...
+htop instalado ✓
+$ htop
+CPU 12%  MEM 3.1/8 GB  SWAP 0
+  1 root      Termux
+  2 u0_a231   bash
+(press q)</pre>
+<dl class="anatomy">
+  <dt>htop</dt><dd>o monitor interativo de processos (versão turbinada do <code>top</code>)</dd>
+  <dt>MEM 3.1/8 GB</dt><dd>3,1 GB de RAM em uso de 8 GB totais — sobra memória para mais serviços</dd>
+  <dt>SWAP 0</dt><dd>quanto da memória virtual (zram/disco) está em uso — zero é o ideal</dd>
+</dl>
+<p>Como ler: se a barra de <strong>MEM</strong> chega perto do total e o <strong>SWAP</strong> começa a crescer, o celular está "paginando" — trocando memória para o zram/disco, que deixa tudo lento. Nesse momento, feche apps ou mate processos pesados no próprio htop (tecla <code>k</code> mata o processo selecionado). No Termux, os vilões comuns são: vários <code>python -m http.server</code> esquecidos, sessões de <code>proot-distro</code> abertas, e o <code>pkg upgrade</code> rodando em paralelo com outra coisa.</p>
+
+<hr>
+
+<h2>Memória virtual no Android: zram e swap</h2>
+<p>O Android não usa swap em disco como um PC — ele usa <strong>zram</strong>: um bloco de RAM comprimida (geralmente metade da RAM física) que funciona como swap rápida. Quando a RAM enche, páginas pouco usadas são comprimidas para dentro do próprio chip — muito mais rápido que escrever em disco. No Pixel da Ana, com 8 GB, o zram costuma ser ~4 GB.</p>
+<ul>
+  <li><strong>Vantagem</strong>: o celular aguenta mais apps abertos sem travar;</li>
+  <li><strong>Desvantagem</strong>: zram consome CPU para comprimir/descomprimir — se o SWAP do htop está alto o tempo todo, há processo demais rodando;</li>
+  <li><strong>Com root</strong> (Pixel rootado da Ana): dá para ajustar o tamanho do zram e o <em>swappiness</em> (tendência do kernel a usar swap) via <code>/sys</code> e <code>/proc/sys/vm/swappiness</code> — tuning fino para quem roda servidor 24/7 no celular.</li>
+</ul>
+
+<div class="warning">
+<strong>Swap em SD/pendrive desgasta o cartão.</strong> Se for criar swap arquivo em armazenamento externo, use um SSD via OTG, não um microSD — ciclos de escrita constantes matam SD rapidamente. E nunca use swap como desculpa para rodar mais processos do que a RAM aguenta: o celular esquenta, a bateria drena e a experiência fica ruim.
+</div>
+
+<hr>
+
+<h2>Storage extra: SSD e pendrive via OTG</h2>
+<p>128 GB parecem muito até você encher com fotos, vídeos 4K e o bootstrap de três distros proot. A saída é um <strong>SSD/pendrive na porta USB-C</strong> com cabo OTG (o Pixel 7 Pro fala USB 3.2):</p>
+<pre class="term" data-host="android">$ ls /dev/block/sda1
+/dev/block/sda1
+$ mkdir -p ~/ssd
+$ mount /dev/block/sda1 ~/ssd        # com root/tsu
+# ou, sem root, via SAF: termux-setup-storage já dá ~/storage
+$ df -h ~/ssd
+Filesystem      Size  Used Avail Use%  Mounted on
+/dev/block/sda1 466G  120G  346G  26%  /data/data/com.termux/files/home/ssd</pre>
+<p>Sem root, o Termux acessa o armazenamento externo pelo <code>~/storage</code> (após <code>termux-setup-storage</code>, aula <a href="storage.html">storage</a>); com root (ou <code>tsu</code>), dá para montar o SSD em qualquer pasta com <code>mount</code>. Usos práticos: clone de repositórios grandes, banco PostgreSQL com muitos dados (aula <a href="bancos-local.html">Bancos local</a>), backups <code>tar.gz</code> das fotos, e o diretório de build de projetos pesados.</p>
+
+<hr>
+
+<h2>Medindo na prática: um mini benchmark no terminal</h2>
+<p>Quer saber se o celular está rápido hoje? Um teste rápido de escrita/leitura no storage interno diz mais que achismo. Rode no Termux:</p>
+<pre class="term" data-host="android">$ time dd if=/dev/zero of=~/teste.bin bs=1M count=500 oflag=direct 2&gt;&amp;1 | tail -1
+500+0 records in / 500+0 records out
+real    0m 0.42s
+$ rm ~/teste.bin
+$ pkg install python
+$ python --version
+Python 3.11.9</pre>
+<p>O <code>dd</code> escreveu 500 MB no armazenamento interno e o <code>time</code> mediu o total: ~1,2 GB/s de escrita — é o UFS do Pixel 7 Pro falando. Se esse número cair muito (ex.: 50 MB/s), o armazenamento está cheio ou degradado — hora do <code>pkg clean</code> e de limpar fotos. Já o <code>python --version</code> mostra que a pilha de desenvolvimento também está rápida para rodar seus scripts.</p>
+
+<hr>
+
+<h2>Dia a dia rápido: mantenha o Termux leve</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tarefa</th><th>Comando</th><th>Quando fazer</th></tr>
+<tr><td>Atualizar listas e pacotes</td><td><code>pkg update &amp;&amp; pkg upgrade</code></td><td>semanalmente (ou antes de instalar algo novo)</td></tr>
+<tr><td>Limpar cache de pacotes</td><td><code>pkg clean</code></td><td>quando o storage apertar</td></tr>
+<tr><td>Ver o que está ocupando espaço</td><td><code>du -sh ~/* | sort -h</code></td><td>diagnóstico de "onde foi o espaço?"</td></tr>
+<tr><td>Ver processos comendo RAM</td><td><code>htop</code></td><td>sempre que o celular esquentar sem motivo</td></tr>
+<tr><td>Reiniciar serviço travado</td><td>mate o processo no htop (<code>k</code>) e suba de novo</td><td>servidor web/sshd que parou de responder</td></tr>
+<tr><td>Não deixar a tela apagar no meio de um servidor</td><td><code>termux-wake-lock</code></td><td>antes de rodar backup/servidor longo (aula <a href="wake-lock.html">wake lock</a>)</td></tr>
+</table>
+</div>
+<p>E a regra de ouro: <strong>o gargalo quase nunca é o hardware, é o que está rodando nele</strong>. Um Pixel 7 Pro com 8 GB rodando 3 servidores esquecidos vai parecer um celular de 2 GB. O <code>htop</code> mostra a verdade em tempo real.</p>
+
+<hr>
+
+<h2>Energia e temperatura: o freio invisível</h2>
+<p>Performance não é só GHz: é <strong>thermal throttling</strong>. O Snapdragon 8 Gen 2 esquenta (é um chip de notebook dentro de um celular) e, quando passa de ~40 °C no SoC, o Android reduz o clock para esfriar — e aí tudo fica lento de repente. Sinais de que isso está acontecendo: htop mostra CPU alta mas processos travados, o celular está quente na mão, a bateria drena rápido.</p>
+<ul>
+  <li>Não carregue o celular enquanto roda servidor/benchmark pesado — calor + carga = throttle;</li>
+  <li>Com root dá para ler a temperatura (<code>cat /sys/class/thermal/thermal_zone0/temp</code>) e o clock atual (<code>cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq</code>);</li>
+  <li>Para servidor 24/7 (ex.: o túnel ngrok), deixe o celular na sombra, com tela apagada (<code>termux-wake-lock</code> segura o processador, não a tela) e Wi-Fi ligado (dados móveis esquentam mais);</li>
+  <li>Se o aparelho estiver quente demais, pare os serviços pesados e deixe esfriar — forçar não adianta, o kernel manda.</li>
+</ul>
+
+<hr>
+
+<h2>Serviços no Termux: rode como daemon com tmux</h2>
+<p>Um erro comum: deixar o servidor aberto numa aba do terminal e fechar a aba sem querer — o processo morre junto. A solução é o <code>tmux</code>: ele cria sessões que continuam vivas mesmo se você fechar o Termux:</p>
+<pre class="term" data-host="android">$ pkg install tmux
+...
+tmux instalado ✓
+$ tmux new -s web
+$ python -m http.server 8080
+Serving HTTP on 0.0.0.0 port 8080 ...
+# aperta Ctrl+b e depois d: a sessão "web" continua rodando em background
+$ tmux ls
+web: 1 windows (created ...)
+$ tmux attach -t web   # volta para a sessão quando quiser</pre>
+<p>Com isso dá para segurar vários serviços ao mesmo tempo — servidor web, sshd, túnel ngrok, script de backup — cada um numa sessão do tmux, todos sobrevivendo ao fechamento do app. É o jeito de transformar o celular num servidor de verdade.</p>
+
+<hr>
+
+<h2>Espaço em disco é performance</h2>
+<p>Storage cheio deixa o celular lento em <em>tudo</em> — o Android precisa de espaço livre para cache, zram e logs. No Termux, ache os culpados rapidinho:</p>
+<pre class="term" data-host="android">$ du -sh ~/* 2>/dev/null | sort -rh | head -5
+412M    projetos
+180M    .cache
+96M     storage
+$ pkg clean
+... limpando cache de pacotes baixados
+$ df -h /data
+Filesystem      Size  Used Avail Use%  Mounted on
+/dev/block/dm-4  110G   78G   32G  71%  /data</pre>
+<p>Se o <code>df -h /data</code> mostra acima de ~85% usado, é hora de mover coisa para o SSD via OTG ou apagar downloads antigos. E rode <code>pkg clean</code> depois de grandes upgrades — o cache do <code>pkg</code> guarda os <code>.deb</code> baixados e pode comer gigabytes sem você perceber.</p>
+
+<hr>
+
+<h2>Pratique no Pixel da Ana</h2>
+
+<div class="try" data-goal="Snapdragon 8 Gen 2" data-solucao="termux-info">
+<p class="try-task"><strong>Missão:</strong> rode <code>termux-info</code> e confirme o hardware: <code>CPU: Snapdragon 8 Gen 2</code>, <code>RAM total: 8 GB</code>, <code>Device: Pixel 7 Pro (rooted)</code>.</p>
+</div>
+
+<div class="try" data-goal="3.1/8 GB" data-solucao="htop">
+<p class="try-task"><strong>Missão:</strong> instale e rode o monitor: <code>pkg install htop</code> e depois <code>htop</code>. A linha <code>MEM 3.1/8 GB</code> mostra quanto de RAM está em uso. Apertar <code>q</code> no teclado real sai do htop.</p>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>termux-info</code> lê o hardware: Snapdragon 8 Gen 2, 8 GB RAM, 128 GB, Android 14, Pixel 7 Pro (rooted).</li>
+  <li><code>htop</code> mostra CPU/MEM/SWAP em tempo real — <code>3.1/8 GB</code> = 3,1 GB usados de 8 GB.</li>
+  <li>Android usa <strong>zram</strong> (RAM comprimida como swap rápida); swap alto = processos demais.</li>
+  <li>SSD/pendrive via OTG expande o storage; sem root use <code>~/storage</code>, com root dá para <code>mount</code> em qualquer pasta.</li>
+  <li>Mantenha leve: <code>pkg update &amp;&amp; pkg upgrade</code>, <code>pkg clean</code>, <code>du -sh ~/*</code> para achar o que ocupa espaço.</li>
+  <li>Antes de servidor longo: <code>termux-wake-lock</code> para a tela não apagar no meio.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="laboratorio.html">Laboratório ético no próprio celular</a> — com o celular rootado e rápido, dá para instalar ferramentas de rede (<code>nmap</code>) e fazer labs de segurança no próprio aparelho, só em redes suas ou autorizadas.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>adb com root: contrôler o celular pelo PC (adb devices, adb root, adb shell) | Guia Termux</title>
+<meta name="description" content="O celular da Ana (Pixel 7 Pro, Android 14) é rootado e aparece via adb: adb devices lista o serial R5CT20ABCPIXEL com 'Dispositivo rootado detectado ✓', adb root deixa o adbd como root ('adbd is already running as root ✓'), adb shell whoami imprime root e adb logcat mostra 'root shell conectado'. Veja a tabela de comandos adb, o risco de root em produção e pratique as três missões no terminal simulado — porta para o nível 2 (Termux-API).">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">adb</span> com root: o celular visto por fora</h1>
+
+<p class="intro">Até aqui você usou o Termux <strong>por dentro</strong>, como usuário comum (<code>u0_a231</code>). Mas o Pixel 7 Pro da Ana é <strong>rootado</strong> — e existe uma segunda porta para o sistema: o <strong>adb</strong> (Android Debug Bridge). Com ele, o PC enxerga o celular na USB/Wi-Fi, e com <code>adb root</code> o daemon do Android roda como <strong>root</strong>: <code>adb shell whoami</code> imprime <code>root</code>. Nesta aula você passa as três provas disso no terminal simulado.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é o adb e como o PC "enxerga" o celular (<code>adb devices</code> → serial <code>R5CT20ABCPIXEL</code>).</li>
+  <li>Que neste guia o aparelho é rootado: a saída traz <code>Dispositivo rootado detectado ✓ (1 dispositivo)</code>.</li>
+  <li><code>adb root</code> — o adbd passa a rodar como root: <code>adbd is already running as root ✓</code>.</li>
+  <li><code>adb shell whoami</code> → <code>root</code>: dentro do shell do adb, você é o administrador do Android.</li>
+  <li><code>adb logcat</code> — os logs do sistema, com <code>root shell conectado</code> no fim.</li>
+  <li>Outros comandos úteis: <code>adb install</code>, <code>adb shell ls /data</code> (acesso total a /data com root).</li>
+  <li>O risco: em produção o adbd <strong>não</strong> roda como root — root via adb é para labs e aparelhos de teste.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>O que é o adb?</h2>
+<p><strong>adb = Android Debug Bridge</strong>: um protocolo que deixa um computador falar com um aparelho Android — listar dispositivos, abrir um shell, instalar apps, ler logs. Ele tem três peças: o <strong>cliente</strong> (o comando <code>adb</code> no PC), o <strong>servidor</strong> (o processo <code>adb</code> em segundo plano no PC) e o <strong>daemon</strong> (<code>adbd</code>) rodando <strong>no próprio celular</strong>.</p>
+
+<p>No Termux dá para rodar o cliente <code>adb</code> direto no celular apontando para outro aparelho (ou para si mesmo via Wi-Fi) — é o que o simulador faz aqui. No PC, você instala o <strong>platform-tools</strong> (pacote <code>adb</code> no Linux, "Android SDK Platform-Tools" no Windows/macOS).</p>
+
+<pre class="term" data-user="ana" data-host="notebook">$ adb devices        « no PC: quem está conectado?
+List of devices attached
+R5CT20ABCPIXEL	device product:blueline model:Pixel_7_Pro device:blueline</pre>
+
+<hr>
+
+<h2>Missão 1: adb devices — o Pixel rootado aparece</h2>
+<p>O primeiro comando de qualquer sessão adb é ver quem está conectado:</p>
+
+<div class="try" data-goal="Dispositivo rootado detectado ✓" data-solucao="adb devices">
+<p class="try-task"><strong>Missão:</strong> digite <code>adb devices</code> e aperte <kbd>Enter</kbd>. Procure o serial <code>R5CT20ABCPIXEL</code> e a linha <code>Dispositivo rootado detectado ✓ (1 dispositivo)</code>.</p>
+</div>
+
+<pre class="term" data-host="android">$ adb devices
+List of devices attached
+R5CT20ABCPIXEL	device product:blueline model:Pixel_7_Pro device:blueline
+
+Dispositivo rootado detectado ✓ (1 dispositivo)</pre>
+
+<ul>
+  <li><code>R5CT20ABCPIXEL</code> — o <strong>serial</strong> do aparelho (cada Pixel tem um único);</li>
+  <li><code>device</code> — o estado da conexão (pode ser <code>unauthorized</code> na primeira vez — aí você confirma o diálogo na tela do celular);</li>
+  <li><code>product:blueline model:Pixel_7_Pro</code> — codinome e modelo: <code>blueline</code> é o Pixel 7 Pro.</li>
+</ul>
+
+<dl class="anatomy">
+  <dt>adb</dt><dd>O cliente da ponte de debug.</dd>
+  <dt>devices</dt><dd>Subcomando que lista os aparelhos visíveis agora.</dd>
+</dl>
+
+<div class="warn"><strong>Se aparecer <code>unauthorized</code>:</strong> é o Android pedindo para o PC provar que pode falar com o aparelho. Olhe a tela do celular: aparece o diálogo "Permitir depuração USB deste computador?" — toque em <strong>Permitir</strong> (e marque "sempre permitir" se for seu PC). Sem isso, nenhum <code>adb shell</code> funciona.</div>
+
+<hr>
+
+<h2>Missão 2: adb root — o daemon vira root</h2>
+<p>Em celulares de produção (sem root), o <code>adbd</code> roda como usuário comum e <code>adb root</code> responde "cannot run as root in production builds". No Pixel rootado da Ana, não:</p>
+
+<div class="try" data-goal="already running as root" data-solucao="adb root">
+<p class="try-task"><strong>Missão:</strong> rode <code>adb root</code>. A saída deve trazer <code>adbd is already running as root ✓</code> — o daemon do Android já está como root neste aparelho.</p>
+</div>
+
+<pre class="term" data-host="android">$ adb root
+restarting adbd as root
+adbd is already running as root ✓</pre>
+
+<p>A partir desse ponto, todo <code>adb shell</code> abre como <strong>root</strong> — o que muda tudo: dá para ler <code>/data</code> (a área privada de todos os apps, incluindo o próprio Termux), mudar configurações do sistema e instalar apps em modo silencioso.</p>
+
+<div class="warn"><strong>Em produção isso não acontece:</strong> desde o Android 4.x, builds de fábrica vêm com <code>ro.debuggable=0</code> e o adbd se recusa a virar root. O <code>adb root</code> só funciona em ROMs modificadas (root/Magisk com adb root habilitado) ou em emuladores com imagem "userdebug/eng" — como o Pixel da Ana neste guia. Trate como <strong>laboratório</strong>, nunca como estado normal de um aparelho de produção.</div>
+
+<hr>
+
+<h2>Missão 3: adb shell whoami — a prova: root</h2>
+<p>Agora abra um shell no celular pelo adb e pergunte quem você é:</p>
+
+<div class="try" data-goal="root" data-solucao="adb shell whoami">
+<p class="try-task"><strong>Missão:</strong> rode <code>adb shell whoami</code>. A saída deve ser exatamente <code>root</code> — dentro do adb, você é o administrador do Android.</p>
+</div>
+
+<pre class="term" data-host="android">$ adb shell whoami
+root
+$ adb shell getprop ro.build.version.release
+14
+$ adb shell ls /data
+« com root, a área privada de TODOS os apps está visível:
+com.termux  com.android.chrome  com.whatsapp  ...</pre>
+
+<p>Compare com o Termux normal: lá dentro, <code>whoami</code> diz <code>u0_a231 (ana)</code> e <code>/data</code> nem aparece. Pelo adb com root, o sistema inteiro está aberto. Essa é a diferença entre "usuário do app" e "dono do sistema".</p>
+
+<dl class="anatomy">
+  <dt>adb shell</dt><dd>Abre um shell <strong>no aparelho</strong> (não no PC) — é um terminal remoto dentro do Android.</dd>
+  <dt>whoami</dt><dd>O mesmo comando de sempre, só que agora no contexto do adbd: <code>root</code>.</dd>
+  <dt>getprop ro.build.version.release</dt><dd>Lê uma propriedade do sistema — aqui confirma o <strong>Android 14</strong>.</dd>
+</dl>
+
+<hr>
+
+<h2>adb logcat: os logs do sistema</h2>
+<p>Outro comando clássico — o log em tempo real de tudo que acontece no Android:</p>
+
+<pre class="term" data-host="android">$ adb logcat
+--------- beginning of main
+I/ActivityManager: Displayed com.termux/.app.TermuxActivity
+D/adbd: root shell conectado</pre>
+
+<p>A última linha, <code>D/adbd: root shell conectado</code>, é a confirmação de que o daemon está em modo root. Para filtrar só erros: <code>adb logcat *:E</code>. Para parar: <kbd>Ctrl</kbd>+<kbd>C</kbd>.</p>
+
+<hr>
+
+<h2>Tabela de referência: adb no dia a dia</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando</th><th>O que faz</th><th>Saída na máquina da Ana</th></tr>
+<tr><td><code>adb devices</code></td><td>Lista aparelhos conectados</td><td><code>R5CT20ABCPIXEL</code> + <code>Dispositivo rootado detectado ✓ (1 dispositivo)</code></td></tr>
+<tr><td><code>adb root</code></td><td>Faz o adbd rodar como root</td><td><code>adbd is already running as root ✓</code></td></tr>
+<tr><td><code>adb shell whoami</code></td><td>Abre shell no aparelho e roda whoami</td><td><code>root</code></td></tr>
+<tr><td><code>adb shell ls /data</code></td><td>Lista /data (só com root)</td><td><code>(root) acesso total a /data ✓</code></td></tr>
+<tr><td><code>adb shell getprop ro.build.version.release</code></td><td>Versão do Android</td><td><code>14</code></td></tr>
+<tr><td><code>adb logcat</code></td><td>Log do sistema em tempo real</td><td>… <code>root shell conectado</code></td></tr>
+<tr><td><code>adb install app.apk</code></td><td>Instala um APK pelo PC</td><td><code>Success ✓ (app instalado via adb)</code></td></tr>
+<tr><td><code>adb shell</code> (sozinho)</td><td>Entra no shell interativo do aparelho</td><td>prompt muda para o do Android</td></tr>
+</table>
+</div>
+
+<p>Também dá para usar adb <strong>por Wi-Fi</strong> (sem cabo): ative "Depuração sem fio" nas opções de desenvolvedor do Android 11+ e rode <code>adb connect 192.168.1.42:5555</code> — o celular entra na lista do <code>adb devices</code> igualzinho.</p>
+
+<hr>
+
+<h2>Termux (dentro) × adb root (fora): quando usar cada um</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>Termux (dentro do app)</th><th>adb shell (fora, via PC)</th></tr>
+<tr><td><strong>Usuário</strong></td><td><code>u0_a231 (ana)</code> — comum</td><td><code>root</code> — administrador (neste aparelho rootado)</td></tr>
+<tr><td><strong>Vé o quê</strong></td><td>só a própria pasta + <code>~/storage</code></td><td>o sistema inteiro: <code>/data</code>, <code>/system</code>, todos os apps</td></tr>
+<tr><td><strong>Para que serve</strong></td><td>desenvolver, rodar servidores, automação</td><td>inspecionar, consertar, instalar APK, ler logs, labs de segurança</td></tr>
+<tr><td><strong>Risco</strong></td><td>baixo (isolado)</td><td><strong>alto</strong> — root apaga qualquer coisa; use em aparelho de teste</td></tr>
+</table>
+</div>
+
+<div class="warn"><strong>Root via adb é para laboratório.</strong> Num celular de uso real, adbd como root só em ROM modificada — e isso anula várias proteções do Android (apps com root leem dados de todos os outros apps, incluindo senhas salvas). Neste guia o Pixel rootado serve para você <em>ver</em> a diferença; no dia a dia, fique no Termux como usuário comum.</div>
+
+<hr>
+
+<h2>adb por Wi-Fi, push/pull e outros úteis</h2>
+<p>Além do shell, o adb transfere arquivos nos dois sentidos e controla o aparelho:</p>
+
+<pre class="term" data-host="android">$ adb connect 192.168.1.42:5555     « Android 11+: depuração sem fio
+connected to 192.168.1.42:5555
+$ adb push ~/backup.tar.gz /sdcard/Download/
+~/backup.tar.gz: 1 file pushed. 2.3MB/s
+$ adb pull /sdcard/Download/backup.tar.gz .
+/sdcard/Download/backup.tar.gz: 1 file pulled.
+$ adb reboot                              « reinicia o aparelho
+$ adb shell dumpsys battery               « bateria vista pelo sistema (complementa o termux-battery-status)</pre>
+
+<dl class="anatomy">
+  <dt>adb connect IP:porta</dt><dd>Conecta no adbd por Wi-Fi (precisa ativar "Depuração sem fio" nas Opções do desenvolvedor).</dd>
+  <dt>adb push origem destino</dt><dd>Copia arquivo do PC para o celular.</dd>
+  <dt>adb pull origem destino</dt><dd>Copia arquivo do celular para o PC — ótimo para puxar fotos: <code>adb pull /sdcard/DCIM/Camera .</code></dd>
+  <dt>adb shell dumpsys battery</dt><dd>Mostra a bateria em formato de sistema (a Termux-API usa o mesmo serviço por baixo).</dd>
+</dl>
+
+<hr>
+
+<h2>Inspecionando o sistema por root: pm, dumpsys e getprop</h2>
+<p>Com o adbd como root, o shell do adb vira uma central de inspeção do Android:</p>
+
+<pre class="term" data-host="android">$ adb shell pm list packages | grep termux
+com.termux
+com.termux.api
+$ adb shell dumpsys battery | head -5
+  AC powered: true
+  level: 87
+  status: Charging
+$ adb shell getprop ro.product.model
+Pixel 7 Pro
+$ adb shell cat /data/data/com.termux/files/home/backup.log   « root lê a área privada do Termux
+backup iniciado
+backup concluido</pre>
+
+<ul>
+  <li><code>pm list packages</code> — todos os apps instalados (<code>pm</code> = package manager);</li>
+  <li><code>dumpsys battery</code> — bateria em formato de sistema (o <code>termux-battery-status</code> usa esse serviço);</li>
+  <li><code>getprop</code> — lê propriedades do sistema (modelo, versão, build);</li>
+  <li><code>cat /data/data/com.termux/…</code> — com root, dá para ler a área privada do próprio Termux por fora.</li>
+</ul>
+
+<h3>Revogando o acesso depois do lab</h3>
+<p>Terminou o laboratório? Volte o adbd para o modo comum e limpe as autorizações no PC:</p>
+
+<pre class="term" data-host="android">$ adb unroot            « adbd volta a rodar como usuário comum (em ROMs que permitem)
+$ adb kill-server       « no PC: mata o servidor adb local
+$ adb disconnect        « desconecta o Wi-Fi adb
+« no celular: Opções do desenvolvedor → Revogar autorizações de depuração USB</pre>
+
+<div class="warn"><strong>Revogar depuração USB é o passo que todo mundo esquece:</strong> cada PC autorizado fica salvo no celular. Num aparelho rootado com adb root, qualquer máquina autorizada tem acesso de administrador. Depois de testar, revogue nas Opções do desenvolvedor e desligue a "Depuração USB" quando não estiver usando.</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>O <strong>adb</strong> é a ponte PC ↔ Android: cliente no PC, daemon (<code>adbd</code>) no celular.</li>
+  <li><code>adb devices</code> listou o <code>R5CT20ABCPIXEL</code> (Pixel 7 Pro) com <code>Dispositivo rootado detectado ✓ (1 dispositivo)</code>.</li>
+  <li><code>adb root</code> → <code>adbd is already running as root ✓</code>: neste aparelho rootado, o daemon já roda como root.</li>
+  <li><code>adb shell whoami</code> → <code>root</code>: pelo adb, você é o administrador (diferente do <code>u0_a231 (ana)</code> do Termux).</li>
+  <li><code>adb logcat</code> mostra os logs e termina com <code>root shell conectado</code>; <code>adb install</code> instala APKs.</li>
+  <li>Em produção o adbd não vira root — isso aqui é lab de aparelho rootado.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula (nível 2):</strong> <a href="termux-api.html">termux-api: bateria, notificação, SMS, GPS</a> — agora pelo outro lado: os comandos <code>termux-*</code> que controlam o próprio celular por dentro do Termux.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

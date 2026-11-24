@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rede no celular: ifconfig, ping, nmap localhost e túnel reverso com ngrok | Guia Termux</title>
+<meta name="description" content="A rede do Termux no Android explicada: ifconfig mostra o wlan0 com IP 192.168.1.42, ping -c 1 8.8.8.8 testa a internet, nmap localhost revela as portas 8022 (ssh) e 8080 (web) abertas no próprio celular e o túnel reverso ngrok http 8080 publica o site do celular na internet sem abrir porta no roteador — com missões no terminal simulado ana@android.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">Rede</span> no celular: do Wi-Fi ao túnel reverso</h1>
+
+<p class="intro">O celular da Ana está no Wi-Fi de casa com o IP <strong>192.168.1.42</strong>, rodando um servidor SSH na porta <strong>8022</strong> e um servidor web Python na <strong>8080</strong>. Nesta aula você aprende a <strong>enxergar essa rede do próprio celular</strong> — <code>ifconfig</code>, <code>ping</code>, <code>nmap localhost</code> — e o truque que mais impressiona: publicar o site que roda no Termux na internet usando um <strong>túnel reverso com ngrok</strong>, sem precisar abrir nenhuma porta no roteador.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como o celular pega IP no Wi-Fi: <code>ifconfig</code> mostra a interface <code>wlan0</code> com <code>inet 192.168.1.42</code>;</li>
+  <li>Testar a internet com <code>ping -c 1 8.8.8.8</code> (1 pacote transmitido, 1 recebido);</li>
+  <li>Enumerar as portas abertas no próprio celular com <code>nmap localhost</code> (8022 ssh, 8080 http);</li>
+  <li>Por que <code>localhost</code> no celular é o próprio celular — e a diferença para o IP do Wi-Fi;</li>
+  <li>Túnel reverso: <code>ngrok http 8080</code> gera uma URL pública (<code>*.ngrok-free.app</code>) que chega no servidor do Termux;</li>
+  <li>Praticar tudo no terminal simulado <code>ana@android</code>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>O IP do celular no Wi-Fi: <code>ifconfig</code></h2>
+<p>Quando o Pixel entra no Wi-Fi de casa, o roteador entrega a ele um IP privado via DHCP — no caso, <strong>192.168.1.42</strong>. O comando <code>ifconfig</code> (ou <code>ip addr</code>) mostra exatamente isso, na interface <code>wlan0</code> (a placa Wi-Fi):</p>
+<pre class="term" data-host="android">$ ifconfig
+wlan0: flags=4163&lt;UP,BROADCAST,RUNNING,MULTICAST&gt;
+        inet 192.168.1.42  netmask 255.255.255.0
+        ether dc:a6:32:11:22:33
+
+lo: inet 127.0.0.1</pre>
+<dl class="anatomy">
+  <dt>ifconfig</dt><dd>o comando clássico que lista as interfaces de rede e seus endereços IP</dd>
+  <dt>wlan0</dt><dd>a interface Wi-Fi do celular ("wireless LAN 0") — é por ela que o tráfego sai para a rede local e a internet</dd>
+  <dt>inet 192.168.1.42</dt><dd>o endereço IPv4 que o roteador deu ao celular na rede local (192.168.x.x é uma faixa privada)</dd>
+  <dt>lo</dt><dd>a interface de <em>loopback</em> (127.0.0.1): o "endereço de si mesmo", usado pelo <code>localhost</code></dd>
+</dl>
+<p>Esse IP é o que você usa para acessar o celular <em>de dentro da mesma rede</em>: do PC, <code>ssh ana@192.168.1.42 -p 8022</code> (aula <a href="sshd.html">sshd no Termux</a>). Ele muda toda vez que o celular reconecta — dá para fixar um IP estático nas configurações de Wi-Fi do Android ou pelo MAC no roteador.</p>
+
+<hr>
+
+<h2>Testando a conexão: <code>ping</code></h2>
+<p>O <code>ping</code> manda um pacote ICMP de eco para um endereço e mede se ele voltou. É o "alô, tem alguém aí?" da rede:</p>
+<pre class="term" data-host="android">$ ping -c 1 8.8.8.8
+PING 8.8.8.8: 56 data bytes
+64 bytes: icmp_seq=0 ttl=117 time=23.4 ms
+1 packets transmitted, 1 packets received, 0.0% packet loss ✓</pre>
+<p>O <code>8.8.8.8</code> é o DNS público do Google — um alvo seguro para teste porque ele sempre responde. <code>-c 1</code> limita a 1 pacote (senão o ping roda até você apertar Ctrl+C). Se o ping falha, o problema é antes da aplicação: Wi-Fi conectado? Roteador ligado? Modo avião? Se o ping ao 8.8.8.8 funciona mas um site não abre, aí o problema é DNS — teste <code>ping -c 1 google.com</code>.</p>
+
+<hr>
+
+<h2>Portas abertas no próprio celular: <code>nmap localhost</code></h2>
+<p>Um celular com Termux rodando <code>sshd</code> e um servidor web é, na prática, um <strong>mini servidor</strong>. O <code>nmap</code> lista as portas TCP abertas — e rodando contra <code>localhost</code> (127.0.0.1, o próprio aparelho), ele mostra o que está escutando no celular:</p>
+<pre class="term" data-host="android">$ nmap localhost
+Starting Nmap 7.94 (simulado)
+Host 192.168.1.42 is up.
+PORT     STATE SERVICE
+8022/tcp open  ssh
+8080/tcp open  http
+Nmap done: 1 IP address scanned ✓</pre>
+<p>As duas portas são as nossas velhas conhecida: <strong>8022</strong> é o <code>sshd</code> (aula <a href="sshd.html">sshd no Termux</a>) e <strong>8080</strong> é o <code>python -m http.server 8080</code> (aula <a href="servidor-web.html">Servidor web no celular</a>). Rodar <code>nmap localhost</code> é o jeito rápido de confirmar que os serviços subiram — e, no celular rootado, dá para ir além: com root, o <code>nmap</code> consegue fazer scan SYN furtivo e varredura de redes inteiras a partir do próprio aparelho (cuidado: só em redes suas ou autorizadas — veja <a href="laboratorio.html">Laboratório ético</a>).</p>
+
+<div class="warning">
+<strong>Cuidado com o que você escaneia.</strong> Rodar <code>nmap</code> em redes que não são suas (Wi-Fi do vizinho, do trabalho, da escola) é invasão — em vários países é crime, mesmo "só para testar". No Termux, use o nmap contra <code>localhost</code>, contra o seu próprio IP, ou em labs/CTFs autorizados. A aula <a href="laboratorio.html">Laboratório ético no próprio celular</a> mostra o uso correto.
+</div>
+
+<hr>
+
+<h2>Túnel reverso: publique o site do celular com <code>ngrok</code></h2>
+<p>O IP <code>192.168.1.42</code> só funciona dentro do Wi-Fi de casa. E se você quiser mostrar um site rodando no Termux para um amigo na internet? A solução preguiçosa (abrir porta no roteador, port forwarding) é perigosa e muitas vezes nem está disponível. A solução elegante é o <strong>túnel reverso</strong>: o celular abre uma conexão de saída para um servidor público (o do ngrok) e esse servidor entrega uma URL HTTPS que redireciona para o celular:</p>
+<pre class="term" data-host="android">$ python -m http.server 8080
+Serving HTTP on 0.0.0.0 port 8080 (http://192.168.1.42:8080/ ) ...
+$ ngrok http 8080
+Forwarding  https://termux-ana-7f3k.ngrok-free.app -> http://localhost:8080
+Túnel aberto ✓ — seu site no celular está público na internet</pre>
+<p>Repare no desenho: <code>ngrok http 8080</code> cria a URL <code>https://termux-ana-7f3k.ngrok-free.app</code> que aponta para a porta 8080 do próprio celular. O roteador não precisa de porta nenhuma aberta — a conexão é iniciada <em>de dentro</em> do celular para fora. É o mesmo truque usado para webhooks, bots e demos. O plano grátis do ngrok dá URL aleatória a cada sessão (dá para fixar com conta paga); o <code>cloudflared</code> (Cloudflare Tunnel) faz o mesmo de graça com URL fixa em conta paga.</p>
+<dl class="anatomy">
+  <dt>ngrok</dt><dd>o cliente do serviço de túneis reversos (instale com <code>pkg install ngrok</code>)</dd>
+  <dt>http</dt><dd>o subcomando que cria um túnel para um servidor HTTP local</dd>
+  <dt>8080</dt><dd>a porta local do Termux que será exposta — a mesma do <code>python -m http.server 8080</code></dd>
+</dl>
+
+<div class="warning">
+<strong>Túnel público = tudo o que está na porta fica público.</strong> Se você publisha a 8022 do SSH por engano, o mundo inteiro ganha uma porta de login no seu celular rootado. Publique somente a porta do site/serviço que você quer mostrar, desligue o túnel quando terminar (<code>Ctrl+C</code> no ngrok) e, no plano grátis, a URL é temporária — não conte com ela como endereço fixo.
+</div>
+
+<hr>
+
+<h2><code>localhost</code> vs IP do Wi-Fi: por que os dois funcionam</h2>
+<p>Uma sutileza que confunde muita gente: no celular, <code>localhost</code> (127.0.0.1) e <code>192.168.1.42</code> parecem "o mesmo aparelho" — e são. A diferença é o caminho que o pacote faz:</p>
+<ul>
+  <li><strong>localhost / 127.0.0.1</strong>: o pacote nem sai do celular; é o próprio sistema falando com ele mesmo. Por isso <code>nmap localhost</code> e <code>ngrok http 8080</code> (que aponta para <code>localhost:8080</code>) funcionam até <em>sem Wi-Fi ligado</em>;</li>
+  <li><strong>192.168.1.42</strong>: o pacote vai até o roteador e volta — é o endereço que <em>outros</em> dispositivos da rede usam para falar com o seu celular (PC fazendo <code>ssh ana@192.168.1.42 -p 8022</code>).</li>
+</ul>
+<p>O servidor do Termux precisa estar ouvindo em <code>0.0.0.0</code> (todas as interfaces) para aceitar conexões vindas do Wi-Fi — é o que o <code>Serving HTTP on 0.0.0.0 port 8080</code> anuncia. Se um serviço só ouve em 127.0.0.1, ele responde para o próprio celular mas não para a rede.</p>
+
+<hr>
+
+<h2>Wi-Fi, dados móveis, VPN e proxy</h2>
+<p>O celular da Ana tem duas saídas para a internet, e o Termux usa a que estiver ativa:</p>
+<ul>
+  <li><strong>Wi-Fi (wlan0)</strong>: IP privado 192.168.1.42 atrás do roteador de casa — o SSH e o servidor web são alcançáveis pela rede local, e o ngrok publica para fora;</li>
+  <li><strong>Dados móveis (rmnet0)</strong>: IP dado pela operadora (geralmente atrás de CGNAT, sem IP público próprio) — acesso de fora precisa de túnel reverso ou VPN;</li>
+  <li><strong>VPN</strong>: troca a "saída" da internet: com um app de VPN (WireGuard, por exemplo) o celular passa a aparecer em outra rede/IP, útil para acessar a rede de casa de fora com segurança — diferente de abrir porta no roteador, a VPN deixa o celular <em>inside</em> da rede;</li>
+  <li><strong>Proxy</strong>: no Termux dá para rotear comandos por proxy com variáveis de ambiente (<code>export http_proxy=http://...</code>), útil em redes corporativas que exigem proxy.</li>
+</ul>
+<p>Regra prática: em rede local, use o IP do Wi-Fi; fora de casa, use túnel reverso (ngrok/cloudflared) ou VPN — nunca port forwarding aberto na internet para um celular rootado.</p>
+
+<hr>
+
+<h2>Mapa da rede da Ana</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando</th><th>O que mostra</th><th>Saída no Pixel da Ana</th></tr>
+<tr><td><code>ifconfig</code></td><td>Interfaces e IPs do aparelho</td><td><code>wlan0 inet 192.168.1.42</code>, <code>lo 127.0.0.1</code></td></tr>
+<tr><td><code>ping -c 1 8.8.8.8</code></td><td>Se a internet responde</td><td><code>1 packets transmitted, 1 packets received</code></td></tr>
+<tr><td><code>nmap localhost</code></td><td>Portas abertas no próprio celular</td><td><code>8022/tcp open ssh</code>, <code>8080/tcp open http</code></td></tr>
+<tr><td><code>python -m http.server 8080</code></td><td>Servidor web na porta 8080</td><td><code>Serving HTTP on 0.0.0.0 port 8080</code></td></tr>
+<tr><td><code>ngrok http 8080</code></td><td>URL pública para a porta 8080</td><td><code>https://termux-ana-7f3k.ngrok-free.app</code></td></tr>
+<tr><td><code>sshd</code></td><td>Servidor SSH na porta 8022</td><td><code>ssh ana@192.168.1.42 -p 8022</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Testando de verdade: <code>curl</code> no seu próprio servidor</h2>
+<p>Depois de subir o servidor web na 8080, confirme que ele responde <em>de dentro do celular</em> e <em>pela rede local</em> com o <code>curl</code>:</p>
+<pre class="term" data-host="android">$ python -m http.server 8080 &
+Serving HTTP on 0.0.0.0 port 8080 ...
+$ curl -s http://localhost:8080 | head -3
+&lt;!doctype html&gt;
+&lt;title&gt;Directory listing for /&lt;/title&gt;
+$ curl -s http://192.168.1.42:8080 | head -3
+&lt;!doctype html&gt;   # pelo IP do Wi-Fi também responde
+$ curl -s https://termux-ana-7f3k.ngrok-free.app | head -3
+&lt;!doctype html&gt;   # e pela URL pública do túnel</pre>
+<p>Três endereços, mesma página: <code>localhost</code> (só o celular), <code>192.168.1.42</code> (a rede local) e a URL do ngrok (a internet). Saber testar pelos três é o que separa "acho que funcionou" de "funcionou".</p>
+
+<hr>
+
+<h2>Pratique no celular da Ana</h2>
+
+<div class="try" data-goal="192.168.1.42" data-solucao="ifconfig">
+<p class="try-task"><strong>Missão:</strong> rode <code>ifconfig</code> e encontre o IP do celular na rede Wi-Fi: <code>inet 192.168.1.42</code> na interface <code>wlan0</code>. Depois teste a internet com <code>ping -c 1 8.8.8.8</code>.</p>
+</div>
+
+<div class="try" data-goal="ngrok-free.app" data-solucao="ngrok http 8080">
+<p class="try-task"><strong>Missão:</strong> suba um servidor local com <code>python -m http.server 8080</code> e abra o túnel reverso com <code>ngrok http 8080</code>. A URL pública <code>https://termux-ana-7f3k.ngrok-free.app</code> deve aparecer na saída. Também vale <code>nmap localhost</code> para ver 8022 e 8080 abertas.</p>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>ifconfig</code> mostra o IP do celular no Wi-Fi: <code>wlan0 inet 192.168.1.42</code> (e <code>lo</code> = 127.0.0.1 = o próprio aparelho).</li>
+  <li><code>ping -c 1 8.8.8.8</code> confirma internet: <code>1 packets transmitted, 1 packets received</code>.</li>
+  <li><code>nmap localhost</code> lista as portas do próprio celular: <code>8022/tcp open ssh</code> e <code>8080/tcp open http</code>.</li>
+  <li><code>ngrok http 8080</code> cria túnel reverso: URL pública <code>*.ngrok-free.app</code> → porta 8080 do Termux, sem abrir porta no roteador.</li>
+  <li>Portas abertas em rede pública são porta de entrada — publique só o necessário e desligue o túnel ao terminar.</li>
+  <li>nmap só em redes próprias/autorizadas (veja <a href="laboratorio.html">Laboratório ético</a>).</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="performance.html">Performance no Termux</a> — o hardware do Pixel 7 Pro (Snapdragon 8 Gen 2, 8 GB de RAM), <code>htop</code>, zram/swap e SSD via OTG para o celular voar.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

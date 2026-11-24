@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>termux-setup-storage: acessar fotos, vídeos e arquivos do celular | Guia Termux</title>
+<meta name="description" content="Como dar acesso aos arquivos do celular no Termux: rode termux-setup-storage, aceite a permissão de storage no diálogo do Android e ganhe os links em ~/storage (dcim, downloads, movies, music, pictures, shared) que apontam para /storage/emulated/0. Veja o erro real 'Permission denied' de antes do setup, a anatomia do comando e pratique ls ~/storage no terminal simulado.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">termux-setup-storage</span>: suas fotos dentro do terminal</h1>
+
+<p class="intro">Por padrão, o Termux vive isolado na própria pasta — e <strong>não consegue ver suas fotos, downloads ou músicas</strong>. O comando <code>termux-setup-storage</code> muda isso: ele pede a permissão de arquivos ao Android e cria a pasta <code>~/storage</code> com atalhos para o cartão/memória interna (<code>/storage/emulated/0</code>). Nesta aula você vê o erro <code>Permission denied</code> de antes, roda o setup, aceita o diálogo e lista <code>dcim  downloads  movies  music  pictures  shared</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Por que o Termux não vê seus arquivos por padrão (isolamento de app do Android).</li>
+  <li>O erro real de antes do setup: <code>ls: cannot access '...storage': Permission denied</code>.</li>
+  <li><code>termux-setup-storage</code> — o comando, o diálogo de permissão do Android e a saída com <code>Storage configurado ✓</code>.</li>
+  <li>A anatomia de <code>~/storage</code>: <code>dcim</code>, <code>downloads</code>, <code>movies</code>, <code>music</code>, <code>pictures</code>, <code>shared</code>.</li>
+  <li>Para que usar: backup de fotos, servidor web servindo a pasta DCIM, automação com imagens.</li>
+  <li>Praticar <code>ls ~/storage</code> no terminal simulado depois do setup.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>Antes do setup: Permission denied</h2>
+<p>A pasta <code>storage</code> já existe na home da Ana, mas é só um "buraco" para o sistema de arquivos do celular — sem permissão, o Android barra o acesso:</p>
+
+<pre class="term" data-host="android">$ ls ~/storage
+ls: cannot access '/data/data/com.termux/files/home/storage': Permission denied
+(dica: rode termux-setup-storage antes)</pre>
+
+<div class="warn"><strong>Esse "Permission denied" é normal e esperado</strong> — não é bug. O Android isola cada app: sem pedir a permissão de "acesso a fotos e mídia", o Termux não pode abrir <code>/storage/emulated/0</code>, onde ficam suas fotos. O comando de desbloqueio é justamente o <code>termux-setup-storage</code>.</div>
+
+<hr>
+
+<h2>O comando: termux-setup-storage</h2>
+<p>Rode-o uma única vez. Ele registra a permissão e cria os links simbólicos dentro de <code>~/storage</code>:</p>
+
+<div class="try" data-goal="Storage configurado ✓" data-solucao="termux-setup-storage">
+<p class="try-task"><strong>Missão:</strong> digite <code>termux-setup-storage</code> e aperte <kbd>Enter</kbd>. No celular real, aparece o diálogo do Android pedindo acesso a fotos/arquivos — aceite. A saída termina com <code>Storage configurado ✓</code>.</p>
+</div>
+
+<pre class="term" data-host="android">$ termux-setup-storage
+Setting up storage access...
+Links criados em ~/storage:
+  dcim -> /storage/emulated/0/DCIM
+  downloads -> /storage/emulated/0/Download
+  pictures -> /storage/emulated/0/Pictures
+  music -> /storage/emulated/0/Music
+  movies -> /storage/emulated/0/Movies
+  shared -> /storage/emulated/0
+Storage configurado ✓ (aceite a permissão no Android)</pre>
+
+<dl class="anatomy">
+  <dt>termux-setup-storage</dt><dd>O comando da Termux-API que configura o acesso ao armazenamento externo. Não recebe argumentos.</dd>
+  <dt>~/storage</dt><dd>A pasta que ele cria dentro da home do Termux, cheia de <strong>links simbólicos</strong> (atalhos) para as pastas do celular.</dd>
+  <dt>shared</dt><dd>O link "raiz": aponta para <code>/storage/emulated/0</code>, a memória interna inteira — <code>~/storage/shared</code> é onde começa tudo.</dd>
+</dl>
+
+<p>Na prática, cada link aponta para uma pasta real do Android:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Link em ~/storage</th><th>Aponta para</th><th>O que tem lá</th></tr>
+<tr><td><code>dcim</code></td><td><code>/storage/emulated/0/DCIM</code></td><td>Fotos e vídeos da câmera</td></tr>
+<tr><td><code>pictures</code></td><td><code>/storage/emulated/0/Pictures</code></td><td>Imagens (prints, WhatsApp, etc.)</td></tr>
+<tr><td><code>downloads</code></td><td><code>/storage/emulated/0/Download</code></td><td>Arquivos baixados</td></tr>
+<tr><td><code>movies</code></td><td><code>/storage/emulated/0/Movies</code></td><td>Vídeos salvos</td></tr>
+<tr><td><code>music</code></td><td><code>/storage/emulated/0/Music</code></td><td>Músicas</td></tr>
+<tr><td><code>shared</code></td><td><code>/storage/emulated/0</code></td><td>A memória interna inteira (raiz)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Depois do setup: ls ~/storage</h2>
+<p>Agora a mesma listagem funciona:</p>
+
+<div class="try" data-goal="dcim  downloads" data-solucao="ls ~/storage">
+<p class="try-task"><strong>Missão:</strong> rode <code>termux-setup-storage</code> (se ainda não rodou nesta caixa) e depois <code>ls ~/storage</code>. A saída deve começar com <code>dcim  downloads</code> e terminar com <code>shared</code>.</p>
+</div>
+
+<pre class="term" data-host="android">$ ls ~/storage
+dcim  downloads  movies  music  pictures  shared
+$ ls ~/storage/dcim
+Camera
+$ ls ~/storage/shared/DCIM/Camera | head -3
+IMG_20240501.jpg  IMG_20240502.jpg  VID_20240503.mp4</pre>
+
+<p>Note o detalhe: <code>~/storage/dcim</code> e <code>~/storage/shared/DCIM</code> são <strong>a mesma pasta vista por dois caminhos</strong> — um pelo link curto, outro pelo caminho completo. No Linux, links simbólicos (<code>ls -l</code> mostraria <code>dcim -> /storage/emulated/0/DCIM</code>) não quebram essa equivalência.</p>
+
+<hr>
+
+<h2>Para que isso serve na prática?</h2>
+<p>Com o storage liberado, o celular vira um servidor de arquivos ambulante. Exemplos que este guia usa depois:</p>
+<ul>
+  <li><strong>Backup automático:</strong> o <code>~/backup.sh</code> da Ana compacta <code>~/storage/shared/DCIM</code> num <code>.tar.gz</code> (você verá em automação);</li>
+  <li><strong>Servidor web de fotos:</strong> <code>cd ~/storage/shared/DCIM/Camera && python -m http.server 8080</code> deixa suas fotos navegáveis no navegador de outro aparelho da mesma Wi-Fi (aula <a href="servidor-web.html">servidor web</a>);</li>
+  <li><strong>Organizar downloads:</strong> <code>ls ~/storage/downloads</code>, mover arquivos com <code>mv</code>, apagar com <code>rm</code>;</li>
+  <li><strong>Ver as fotos pelo PC:</strong> com o <code>sshd</code> ligado (aula <a href="sshd.html">sshd</a>), dá para dar <code>scp</code> das fotos para o computador.</li>
+</ul>
+
+<pre class="term" data-host="android">$ cat ~/backup.sh
+#!/data/data/com.termux/files/usr/bin/bash
+echo "backup iniciado"
+tar -czf ~/backup.tar.gz ~/storage/shared/DCIM
+echo "backup concluido"</pre>
+
+<div class="warn"><strong>Permissão negada no diálogo?</strong> Se você tocar em "Não permitir", o <code>termux-setup-storage</code> não cria os links e o <code>ls ~/storage</code> continua dando <code>Permission denied</code>. Vá em <strong>Configurações do Android → Apps → Termux → Permissões → Arquivos e mídia</strong> e permita, depois rode o comando de novo. Em Android 13+, a permissão de "Fotos e vídeos" cobre o DCIM; a de "Arquivos" cobre o resto.</div>
+
+<div class="warn"><strong>Cartão de memória (SD) não aparece?</strong> Em Android moderno, cartões SD aparecem em <code>/storage/XXXX-XXXX</code> (ex.: <code>/storage/1A2B-3C4D</code>), não dentro de <code>shared</code>. O Termux não cria link automático para eles — dá para criar na mão: <code>ln -s /storage/1A2B-3C4D ~/storage/sdcard</code>.</div>
+
+<hr>
+
+<h2>Mexendo nos arquivos: copiar, mover, apagar, contar</h2>
+<p>Com o storage liberado, dá para tratar as fotos como arquivos comuns:</p>
+
+<pre class="term" data-host="android">$ cd ~/storage/shared/DCIM/Camera
+$ ls | wc -l
+142
+$ du -sh .
+1,8G    .
+$ cp IMG_20240501.jpg ~/storage/downloads/
+$ mv IMG_20240502.jpg ~/storage/pictures/
+$ rm IMG_20240503.jpg
+$ find ~/storage/downloads -name "*.pdf"
+~/storage/downloads/boleto-maio.pdf
+~/storage/downloads/contrato.pdf</pre>
+
+<dl class="anatomy">
+  <dt>wc -l</dt><dd>"word count" contando linhas — com <code>ls |</code> vira "quantos arquivos tenho".</dd>
+  <dt>du -sh .</dt><dd>"disk usage" do diretório atual em tamanho legível (1,8G).</dd>
+  <dt>find CAMINHO -name "*.pdf"</dt><dd>Procura arquivos por padrão de nome — o coringa <code>*</code> casa com qualquer coisa.</dd>
+</dl>
+
+<div class="warn"><strong><code>rm</code> no celular apaga de verdade</strong> (não tem lixeira no Termux por padrão). Apagou foto errada? Ela está em <code>~/storage/shared/DCIM</code> porque é a mesma pasta da galeria — e o Android também não manda para lixeira via terminal. Para lixeira de verdade, instale <code>pkg install trash-cli</code> e use <code>trash arquivo</code> no lugar de <code>rm</code>.</div>
+
+<hr>
+
+<h2>Backup rápido manual (o que o backup.sh faz)</h2>
+<p>A Ana deja um script agendado que compacta as fotos todo dia. O coração dele é um <code>tar</code>:</p>
+
+<pre class="term" data-host="android">$ tar -czf ~/backup.tar.gz ~/storage/shared/DCIM
+$ ls -lh ~/backup.tar.gz
+-rw------- 1 u0_a231 u0_a231 1,2G backup.tar.gz
+$ cat ~/backup.log
+backup iniciado
+backup concluido
+backup iniciado
+backup concluido</pre>
+
+<p>O <code>backup.log</code> mostra o script rodando direitinho (duas linhas por execução: "iniciado" e "concluido"). Na automação (nível 2) você verá esse script agendado com <code>crontab -l</code> — a linha <code>*/30 * * * * ~/backup.sh >> ~/backup.log 2>&1</code>.</p>
+
+<hr>
+
+<h2>Os links de verdade: ls -l mostra para onde apontam</h2>
+<p>Por baixo dos panos, <code>~/storage</code> é uma pasta cheia de <strong>links simbólicos</strong>. O <code>ls -l</code> revela para onde cada um aponta:</p>
+
+<pre class="term" data-host="android">$ ls -l ~/storage
+lrwxrwxrwx 1 u0_a231 u0_a231   25 dcim -> /storage/emulated/0/DCIM
+lrwxrwxrwx 1 u0_a231 u0_a231   32 downloads -> /storage/emulated/0/Download
+lrwxrwxrwx 1 u0_a231 u0_a231   31 movies -> /storage/emulated/0/Movies
+lrwxrwxrwx 1 u0_a231 u0_a231   30 music -> /storage/emulated/0/Music
+lrwxrwxrwx 1 u0_a231 u0_a231   33 pictures -> /storage/emulated/0/Pictures
+lrwxrwxrwx 1 u0_a231 u0_a231   26 shared -> /storage/emulated/0</pre>
+
+<p>O <code>l</code> no início da permissão diz que é um <strong>l</strong>ink. Isso significa que <code>~/storage/shared/DCIM/Camera</code>, <code>~/storage/dcim/Camera</code> e <code>/storage/emulated/0/DCIM/Camera</code> são o <strong>mesmo lugar</strong> visto por caminhos diferentes — salve num, aparece no outro.</p>
+
+<h3>Atalho de digitação</h3>
+<p>Em vez de digitar <code>~/storage/shared/DCIM/Camera</code> toda hora, a Ana criou um atalho no <code>~/.bashrc</code>:</p>
+
+<pre class="file" data-file="~/.bashrc"># atalhos da Ana
+alias fotos='cd ~/storage/shared/DCIM/Camera'
+alias downs='cd ~/storage/downloads'
+export PS1='\u@\h:\w$ '</pre>
+
+<pre class="term" data-host="android">$ source ~/.bashrc
+$ fotos
+$ pwd
+/data/data/com.termux/files/home/storage/shared/DCIM/Camera</pre>
+
+<hr>
+
+<h2>Android 13/14: a permissão mudou de nome</h2>
+<p>Nas versões novas do Android, a permissão antiga de "armazenamento" foi dividida. Na hora do <code>termux-setup-storage</code>, o diálogo pode mostrar:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Permissão no diálogo</th><th>Cobre o quê</th><th>Pasta no ~/storage</th></tr>
+<tr><td><strong>Fotos e vídeos</strong></td><td>Imagens, vídeos e áudio (acesso de mídia)</td><td><code>dcim</code>, <code>pictures</code>, <code>movies</code>, <code>music</code></td></tr>
+<tr><td><strong>Arquivos e mídia</strong> / <strong>Todos os arquivos</strong></td><td>Toda a memória interna, inclusive downloads e documentos</td><td><code>downloads</code>, <code>shared</code> (raiz)</td></tr>
+</table>
+</div>
+
+<p>Se o <code>ls ~/storage</code> listar as pastas mas alguma estiver vazia ou com acesso negado, volte em <strong>Configurações → Apps → Termux → Permissões</strong> e garanta as duas. O <code>termux-setup-storage</code> pode ser rodado de novo a qualquer momento — ele só recria os links.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Por padrão o Termux <strong>não vê</strong> fotos/arquivos: <code>ls ~/storage</code> dá <code>Permission denied</code>.</li>
+  <li><code>termux-setup-storage</code> pede a permissão ao Android e cria <code>~/storage</code> com links: <code>dcim downloads movies music pictures shared</code>.</li>
+  <li>Cada link aponta para <code>/storage/emulated/0/...</code> (veja com <code>ls -l ~/storage</code>); <code>shared</code> é a raiz de tudo.</li>
+  <li>Depois do setup, <code>ls ~/storage</code> lista <code>dcim  downloads  movies  music  pictures  shared</code>.</li>
+  <li>Usos práticos: backup do DCIM (<code>tar</code>), servidor web de fotos, sincronizar com o PC via ssh/scp.</li>
+  <li>Android 13/14 dividiu a permissão em "Fotos e vídeos" e "Arquivos" — se algo não abre, confira as duas em Configurações → Apps → Termux.</li>
+  <li>Se negou a permissão, volte nas configurações do app e permita; cartão SD precisa de link manual (<code>ln -s</code>).</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="pkg-apt.html">pkg e apt: instalar programas no celular</a> — os repositórios do Termux, <code>pkg update/upgrade/install/search</code> e o erro <code>Unable to locate package</code>.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

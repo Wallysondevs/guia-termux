@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instalar certo: F-Droid (não a Play Store), Termux:API e permissões | Guia Termux</title>
+<meta name="description" content="Como instalar o Termux do jeito certo: baixe pelo F-Droid ou pelas releases do GitHub (a versão da Play Store está desatualizada desde 2022 e quebrada em Androids novos), instale o app Termux:API separado + pkg install termux-api, e entenda as permissões que o Android pede (storage, notificações, execução em segundo plano). Depois valide com pkg update e pkg list-installed no terminal simulado.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Instalar <span class="hl">certo</span>: F-Droid, não a Play Store</h1>
+
+<p class="intro">A instalação do Termux tem um <strong>erro clássico</strong>: procurar "Termux" na Play Store e instalar o primeiro resultado. Essa versão está <strong>desatualizada desde 2022 e quebrada</strong> em Androids recentes — e o pior: parece que instalou, mas não funciona direito. Nesta aula você aprende as <strong>fontes confiáveis</strong> (F-Droid e GitHub), instala também o <strong>Termux:API</strong> (app separado!), dá as <strong>permissões</strong> que o Android pede e valida tudo com <code>pkg update</code> e <code>pkg list-installed</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Por que a <strong>Play Store está fora</strong>: targetSdk antigo, app abandonado lá desde 2022.</li>
+  <li>As fontes oficiais: <strong>F-Droid</strong> (recomendado) e as <strong>releases no GitHub</strong> (termux/termux-app).</li>
+  <li>Que o ecossistema tem <strong>vários apps</strong>: Termux, Termux:API, Termux:Styling, Termux:Widget, Termux:Boot — todos no F-Droid.</li>
+  <li>Instalar o pacote <code>termux-api</code> dentro do Termux para os comandos <code>termux-*</code> funcionarem.</li>
+  <li>As <strong>permissões</strong> que o Android mostra (storage, notificações, segundo plano) e o que cada uma libera.</li>
+  <li>Validar a instalação: <code>pkg update</code>, <code>pkg list-installed</code> e o erro de pacote inexistente.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>Por que a Play Store está fora</h2>
+<p>Em 2022 o Google Play passou a exigir que apps mirassem uma versão recente da API do Android (<code>targetSdkVersion</code>). O Termux publicado na Play Store tinha parado de ser atualizado (o projeto migrou para o F-Droid e o GitHub porque lá dá para usar as APIs que o Play restringe). Resultado: em Androids novos, a versão da Play Store <strong>instala mas quebra</strong> — ou nem aparece na busca.Muita gente trava aí e desiste do Termux achando que "não funciona no meu celular".</p>
+
+<div class="warn"><strong>Regra de ouro:</strong> Termux e os apps da família vêm do <strong>F-Droid</strong> (f-droid.org) ou das <strong>releases oficiais no GitHub</strong> (github.com/termux/termux-app/releases). Nunca de APK solto na internet — app de terminal com código modificado é porta aberta para roubar suas senhas.</div>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Fonte</th><th>Endereço</th><th>Prós</th><th>Contras</th></tr>
+<tr><td><strong>F-Droid</strong> ✅ recomendado</td><td>f-droid.org → busca "Termux"</td><td>Atualizado sempre, assina os apps, mostra o código-fonte</td><td>Precisa instalar o cliente do F-Droid primeiro (um APK do site oficial)</td></tr>
+<tr><td><strong>GitHub releases</strong> ✅</td><td>github.com/termux/termux-app/releases</td><td>Oficial do projeto, sem intermediários</td><td>Você baixa o APK e instala manualmente ("fontes desconhecidas")</td></tr>
+<tr><td><strong>Play Store</strong> ❌</td><td>play.google.com</td><td>Conveniente</td><td><strong>Desatualizada desde 2022, quebrada em Androids novos, removida da busca em vários países</strong></td></tr>
+<tr><td>APK aleatório de site ❌</td><td>qualquer lugar</td><td>—</td><td><strong>Perigo real:</strong> um terminal falso pode ler tudo que você digita</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Passo a passo na máquina da Ana</h2>
+<p>Na Pixel 7 Pro com Android 14, a Ana fez assim:</p>
+
+<ol class="passo">
+  <li>Baixou o cliente do <strong>F-Droid</strong> em <code>f-droid.org</code> (o APK oficial) e instalou permitindo "instalar deste fonte" só na hora.</li>
+  <li>No F-Droid, procurou <strong>Termux</strong> e instalou. O F-Droid avisou que é a mesma assinatura do projeto oficial — bom sinal.</li>
+  <li>Abriu o Termux pela primeira vez: o app rodou <code>pkg update</code> sozinho na primeira inicialização para preparar os repositórios.</li>
+  <li>Voltou no F-Droid e instalou o <strong>Termux:API</strong> — <strong>app separado</strong>, que dá os comandos <code>termux-battery-status</code>, <code>termux-sms-list</code>, <code>termux-camera-photo</code>…</li>
+  <li>Dentro do Termux, instalou o pacote correspondente: <code>pkg install termux-api</code>.</li>
+  <li>O Android mostrou a caixa de diálogo de <strong>permissões</strong> — a Ana aceitou as que fazem sentido (detalhadas abaixo).</li>
+</ol>
+
+<pre class="term" data-host="android">$ pkg install termux-api
+The following NEW packages will be installed:
+  termux-api
+0 upgraded, 1 newly installed, 0 to remove.
+Setting up termux-api (0.50.1) ...
+termux-api instalado ✓</pre>
+
+<dl class="anatomy">
+  <dt>pkg</dt><dd>O gerenciador de pacotes do Termux (aula <a href="pkg-apt.html">pkg e apt</a> detalha).</dd>
+  <dt>install</dt><dd>O subcomando "instalar".</dd>
+  <dt>termux-api</dt><dd>O nome do pacote — é o lado de dentro do app Termux:API; sem esse pacote os comandos <code>termux-*</code> respondem "command not found".</dd>
+</dl>
+
+<div class="warn"><strong>Os dois lados da Termux-API precisam casar:</strong> o <strong>app</strong> Termux:API (instalado pelo F-Droid, dá o acesso ao hardware) e o <strong>pacote</strong> <code>termux-api</code> (instalado com <code>pkg</code> dentro do Termux, dá os comandos de terminal). Muita gente instala só o app e acha que o <code>termux-battery-status</code> está quebrado — na verdade faltou o pacote.</div>
+
+<hr>
+
+<h2>As permissões que o Android vai pedir</h2>
+<p>O Android isola cada app, então o Termux precisa pedir permissão para sair da própria sandbox. These são as principais:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Permissão</th><th>O que libera</th><th>Comando que usa</th></tr>
+<tr><td><strong>Acesso a fotos/arquivos</strong> (storage)</td><td>Ler e gravar em <code>~/storage</code> (DCIM, Download…)</td><td><code>termux-setup-storage</code> — aula <a href="storage.html">storage</a></td></tr>
+<tr><td><strong>Notificações</strong></td><td>Mostrar notificações na barra de status</td><td><code>termux-notification --title Oi</code></td></tr>
+<tr><td><strong>SMS</strong></td><td>Ler e enviar SMS</td><td><code>termux-sms-list</code></td></tr>
+<tr><td><strong>Localização</strong></td><td>Ler o GPS</td><td><code>termux-location</code></td></tr>
+<tr><td><strong>Câmera</strong></td><td>Tirar fotos</td><td><code>termux-camera-photo ~/foto.jpg</code></td></tr>
+<tr><td><strong>Lanterna</strong></td><td>Acender a lanterna (flash)</td><td><code>termux-torch on</code></td></tr>
+<tr><td><strong>Impedir que a tela apague</strong></td><td>Wake lock (útil para servidores)</td><td><code>termux-wake-lock</code></td></tr>
+<tr><td><strong>Rodar em segundo plano</strong></td><td>Continuar rodando com a tela apagada</td><td>Configurações do Android → apps → Termux → bateria → sem restrições</td></tr>
+</table>
+</div>
+
+<p>A regra prática: <strong>conceda a permissão quando o comando pedir</strong> e o Android mostrar o diálogo. Se você negar, o comando falha na hora — nada quebra, só não funciona.</p>
+
+<hr>
+
+<h2>Valide a instalação: seus primeiros comandos de diagnóstico</h2>
+<p>Com tudo instalado, a Ana rodou dois comandos para confirmar que o gerenciador de pacotes está saudável. O primeiro atualiza a lista de pacotes dos repositórios do Termux:</p>
+
+<div class="try" data-goal="Reading package lists... Done" data-solucao="pkg update">
+<p class="try-task"><strong>Missão:</strong> digite <code>pkg update</code> e aperte <kbd>Enter</kbd>. A última linha deve ser <code>Reading package lists... Done</code> — é a lista de repositórios atualizada.</p>
+</div>
+
+<pre class="term" data-host="android">$ pkg update
+Get:1 https://packages.termux.dev/apt/termux-main stable InRelease
+Reading package lists... Done
+Building dependency tree... Done</pre>
+
+<p>O segundo lista o que já está instalado — cada linha termina com <code>[installed]</code>:</p>
+
+<div class="try" data-goal="[installed]" data-solucao="pkg list-installed">
+<p class="try-task"><strong>Missão:</strong> rode <code>pkg list-installed</code>. Procure o sufixo <code>[installed]</code> em cada linha — é assim que o Termux marca pacote instalado.</p>
+</div>
+
+<pre class="term" data-host="android">$ pkg list-installed
+python/stable 3.11.9-2 [installed]
+nodejs/stable 20.11.1 [installed]
+openssh/stable 9.6p1 [installed]
+vim/stable 9.1.0 [installed]
+nano/stable 7.2 [installed]
+sqlite/stable 3.45.1 [installed]
+curl/stable 8.6.0 [installed]
+git/stable 2.44.0 [installed]</pre>
+
+<p>Na máquina real da Ana a lista é bem maior; no simulado aparecem os primeiros 8. Repare no formato de cada linha: <code>nome/stable versão [installed]</code> — <code>stable</code> é o canal do repositório <code>termux-main</code>.</p>
+
+<h3>E quando o pacote não existe?</h3>
+<p>Se você digitar um nome errado, o erro é claro:</p>
+
+<pre class="term" data-host="android">$ pkg install pacote-que-nao-existe
+Unable to locate package pacote-que-nao-existe</pre>
+
+<div class="warn"><strong>"Unable to locate package" não é culpa sua</strong> — acontece quando (a) o nome está errado, (b) você não rodou <code>pkg update</code> ainda, ou (c) o pacote só existe em repositório extra (x11-repo, unstable). A saída certa é rodar <code>pkg search termo</code> para achar o nome exato antes de instalar — a aula <a href="pkg-apt.html">pkg e apt</a> cobre isso.</div>
+
+<hr>
+
+<h2>Checklist pós-instalação</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Verificação</th><th>Comando</th><th>Saída esperada</th></tr>
+<tr><td>Repositórios atualizados</td><td><code>pkg update</code></td><td>termina com <code>Reading package lists... Done</code></td></tr>
+<tr><td>Pacotes instalados</td><td><code>pkg list-installed</code></td><td>linhas terminando em <code>[installed]</code></td></tr>
+<tr><td>Termux-API viva</td><td><code>termux-battery-status</code></td><td>JSON com <code>"level"</code></td></tr>
+<tr><td>Storage liberado</td><td><code>termux-setup-storage</code> + <code>ls ~/storage</code></td><td><code>dcim downloads movies music pictures shared</code></td></tr>
+<tr><td>Versão do Termux</td><td><code>termux-info</code></td><td><code>TERMUX_VERSION=0.118.0</code> e <code>Device: Pixel 7 Pro (rooted)</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Cuidados depois de instalar</h2>
+<p>Com o Termux no ar, três hábitos evitam dor de cabeça:</p>
+<ul>
+  <li><strong>Mantenha atualizado:</strong> rode <code>pkg update && pkg upgrade</code> toda semana (ou antes de instalar algo novo). Pacotes do Termux são compilados para o Android atual — ficar para trás quebra instalações.</li>
+  <li><strong>Não confunda com root:</strong> o Termux roda como usuário comum (<code>u0_a231</code>). Se um tutorial mandar <code>sudo</code>, no Termux não existe — e não precisa: a casa dele já é só dele.</li>
+  <li><strong>Cuide das configurações:</strong> o arquivo <code>~/.termux/termux.properties</code> muda fonte, cores e teclas extras do teclado virtual. Antes de mexer, copie o original: <code>cp ~/.termux/termux.properties ~/.termux/termux.properties.bak</code>.</li>
+  <li><strong>Repositórios extras existem</strong> (x11-repo para interface gráfica, unstable, root-repo) — só adicione com <code>pkg install x11-repo</code> quando um pacote específico exigir; não precisa para este guia.</li>
+</ul>
+
+<pre class="term" data-host="android">$ pkg update && pkg upgrade
+Get:1 https://packages.termux.dev/apt/termux-main stable InRelease
+Reading package lists... Done
+Reading package lists... Done
+0 packages upgraded, 0 newly installed.</pre>
+
+<div class="warn"><strong>Se o <code>pkg update</code> der erro de rede</strong> (sem internet, DNS bloqueado, operadora com proxy), o Termux continua funcionando com a lista antiga — mas instalações novas podem falhar com <code>Unable to locate package</code>. Conecte no Wi-Fi e rode <code>pkg update</code> de novo.</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><strong>Nunca da Play Store</strong>: a versão de lá está parada desde 2022 e quebra em Androids novos. Use <strong>F-Droid</strong> ou as <strong>releases do GitHub</strong> (termux/termux-app).</li>
+  <li>A família Termux tem vários apps: <strong>Termux</strong> (terminal), <strong>Termux:API</strong>, Termux:Styling, Termux:Widget, Termux:Boot — todos no F-Droid.</li>
+  <li>A Termux-API precisa dos <strong>dois lados</strong>: o app (F-Droid) <em>e</em> o pacote <code>pkg install termux-api</code> dentro do terminal.</li>
+  <li>Permissões (storage, notificações, SMS, GPS, câmera…) são pedidas pelo Android na hora do uso — conceda quando fizer sentido para o comando.</li>
+  <li>Valide com <code>pkg update</code> (<code>Reading package lists... Done</code>) e <code>pkg list-installed</code> (linhas com <code>[installed]</code>).</li>
+  <li>Erro clássico: <code>Unable to locate package X</code> → rode <code>pkg update</code> e <code>pkg search X</code> para achar o nome certo.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="primeiros-comandos.html">Seus primeiros comandos no Android</a> — <code>whoami</code>, <code>pwd</code>, <code>ls</code>, <code>uname -a</code> e <code>termux-info</code> na máquina ana@android.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

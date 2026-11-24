@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Segurança no Termux: senha forte, chaves SSH e a porta 8022 | Guia Termux</title>
+<meta name="description" content="Tranque o seu Termux rootado: senha forte com passwd (nada de 1234), par de chaves SSH com ssh-keygen para desativar login por senha, o servidor sshd na porta 8022 exposto só na rede local, permissões do .ssh e criptografia do Android — com missões no terminal simulado ana@android (Pixel 7 Pro rootado).">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">Segurança</span> no Termux: senha forte, chaves SSH e a porta 8022</h1>
+
+<p class="intro">O celular da Ana é rootado e o <code>sshd</code> pode abrir um servidor SSH nele — ou seja, <strong>a porta 8022 do celular fica acessível pela rede Wi-Fi</strong>. Antes de ligá-la, esta aula cobre a trinca básica de qualquer servidor Linux, que no Termux também vale: <strong>senha forte</strong> (<code>passwd</code>), <strong>login por chave SSH</strong> (<code>ssh-keygen</code>) no lugar da senha, e exposición controlada da porta. Se alguém tentar adivinhar sua senha na internet, a primeira linha de defesa é essa aqui.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Por que a senha do Termux protege o servidor SSH inteiro (<code>sshd</code> na porta 8022) — e o celular rootado atrás dele;</li>
+  <li>Trocar a senha com <code>passwd</code> e o que é uma <strong>senha forte</strong> de verdade (comprimento vence complexidade forçada);</li>
+  <li>Gerar um <strong>par de chaves SSH</strong> com <code>ssh-keygen</code> e por que chave pública/privada derrota a senha;</li>
+  <li>As permissões corretas da pasta <code>~/.ssh</code> (<code>700</code> / <code>600</code>) — o sshd recusa chave em arquivo "aberto demais";</li>
+  <li>A regra de ouro da porta <strong>8022</strong>: só na rede local, nunca exposta na internet sem chave;</li>
+  <li>Praticar no terminal simulado <code>ana@android</code>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>Por que a senha do Termux vale tanto</h2>
+<p>Diferente de um PC de mesa atrás de um roteador com NAT, o <strong>celular anda com você</strong>: ele entra em Wi-Fi de shopping, aeroporto, coworking. Se o <code>sshd</code> está rodando na porta 8022 e a senha é <code>1234</code>, qualquer um na mesma rede (ou na internet, se a porta estiver aberta no roteador) entra no seu Termux — e no celular rootado da Ana, isso significa <code>root</code> para o invasor. A aula <a href="sshd.html">sshd no Termux</a> mostra como ligar o servidor; aqui mostramos como deixá-lo seguro antes de ligar.</p>
+<pre class="term" data-host="android">$ sshd
+Iniciando sshd na porta 8022...
+sshd rodando ✓ — conecte do PC com:
+  ssh ana@192.168.1.42 -p 8022</pre>
+<p>Repare no endereço: <code>192.168.1.42</code> é o IP do celular na rede Wi-Fi local (veja com <code>ifconfig</code> na aula <a href="rede-no-celular.html">Rede no celular</a>). A porta padrão do SSH é 22, mas no Android ela é bloqueada para usuários comuns — por isso o Termux usa a <strong>8022</strong>, que qualquer app pode abrir.</p>
+
+<hr>
+
+<h2>Senha forte com <code>passwd</code></h2>
+<p>O comando <code>passwd</code> troca a senha do usuário atual do Termux (a mesma usada no login SSH por senha). No Android ele não pede a senha antiga (o Termux não tem um "login local" tradicional), então qualquer pessoa que estiver com o celular desbloqueado consegue trocar — mais um motivo para o bloqueio de tela do Android ser forte.</p>
+<pre class="term" data-host="android">$ passwd
+New password: ••••••••
+BAD PASSWORD: too short
+New password: ••••••••••••••••••
+Senha alterada ✓ (simulado)</pre>
+<p>O próprio comando avisa: <code>BAD PASSWORD: too short</code>. A regra moderna (NIST) é simples e contra-intuitiva: <strong>comprimento vence complexidade forçada</strong>. Uma frase com 5 palavras aleatórias (<code> cavalo-bateria-ponte-lua-7 </code>, ~25 caracteres) é muito mais forte que <code>Tr0ub4dor&amp;3</code> — e você ainda lembra dela. Evite datas, nomes de parentes e <code>123456</code>: esses estão no topo de todas as listas de senhas testadas por invasores (dictionary attack).</p>
+<dl class="anatomy">
+  <dt>passwd</dt><dd>o comando que troca a senha do usuário atual; no Termux, a mesma senha vale para o login SSH por senha</dd>
+</dl>
+<div class="warning">
+<strong>Se o celular rootado cair em mãos erradas, a senha do Termux é a última porta.</strong> No Pixel da Ana, com root, um invasor com acesso físico ao <code>/data</code> pode até resetar a senha do Termux — por isso a <strong>criptografia do Android</strong> (Configurações → Segurança → criptografar aparelho, ativa por padrão nos Pixel) é a proteção de verdade: sem o PIN do bloqueio de tela, os dados ficam ilegíveis. Ative também a autenticação em duas etapas nos serviços que você acessa pelo celular.
+</div>
+
+<hr>
+
+<h2>Chaves SSH: melhor que senha</h2>
+<p>Senha, por mais forte que seja, pode ser adivinhada, farejada ou reutilizada. A alternativa padrão é o <strong>par de chaves SSH</strong>: uma chave <em>privada</em> que fica só no seu PC (nunca compartilhe) e uma chave <em>pública</em> que você copia para o celular. No login, o servidor manda um desafio que só a chave privada consegue responder — sem transmitir senha nenhuma pela rede:</p>
+<pre class="term" data-host="android">$ ssh-keygen
+Gerando par de chaves RSA 4096...
+Your identification has been saved in /data/data/com.termux/files/home/.ssh/id_rsa.
+Fingerprint: SHA256:TermuxAna123</pre>
+<p>Depois você copia a chave pública para o servidor (no caso, o próprio celular, a partir do PC) com <code>ssh-copy-id -p 8022 ana@192.168.1.42</code> e desativa o login por senha no <code>~/.ssh/sshd_config</code> do Termux. A partir daí, só quem tiver a chave privada entra — e a chave privada pode (e deve) ter uma <em>passphrase</em> (outra senha) por cima.</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Peça</th><th>Onde fica</th><th>Pode vazar?</th></tr>
+<tr><td><code>~/.ssh/id_rsa</code> (chave privada)</td><td>Só no dispositivo cliente (PC)</td><td><strong>Nunca</strong> — se vazar, gere outra</td></tr>
+<tr><td><code>~/.ssh/id_rsa.pub</code> (chave pública)</td><td>Copiada para o servidor (celular)</td><td>Pode — não serve para entrar</td></tr>
+<tr><td><code>~/.ssh/authorized_keys</code></td><td>No servidor, lista as públicas aceitas</td><td>Pode — é só uma lista</td></tr>
+<tr><td>Fingerprint <code>SHA256:...</code></td><td>Impresso na criação e no login</td><td>Use para confirmar que está no servidor certo</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Permissões da pasta <code>.ssh</code> e a regra da porta 8022</h2>
+<p>O servidor SSH é exigente com permissões: se a pasta <code>~/.ssh</code> ou o arquivo <code>authorized_keys</code> estiverem legíveis por outros usuários, o <code>sshd</code> <strong>ignora a chave silenciosamente</strong> (e cai de volta para a senha). A trinca correta é:</p>
+<pre class="file" data-file="permissoes do .ssh">chmod 700 ~/.ssh
+chmod 600 ~/.ssh/authorized_keys
+chmod 644 ~/.ssh/id_rsa.pub   # a pública pode ser legível</pre>
+<p>E a regra de ouro da porta <strong>8022</strong>: ela deve ser alcançável <strong>somente na sua rede local</strong> (Wi-Fi de casa). Nunca abra a 8022 no roteador para a internet sem chave SSH — bots escaneiam a internet inteira em minutos testando senhas fracas em qualquer porta que encontrar. Se precisar acessar de fora, use um túnel (veja <a href="rede-no-celular.html">Rede no celular</a> com <code>ngrok</code>) ou uma VPN, nunca a porta aberta. No Termux dá para restringir ainda mais o <code>sshd</code> para ouvir só no IP do Wi-Fi, e não em todas as interfaces.</p>
+
+<hr>
+
+<h2>Criptografia, bloqueio de tela e backup seguro</h2>
+<p>A trinca senha + chave protege o acesso <em>pela rede</em>. Para proteger o acesso <em>fisico</em>, o Android já trabalha por você: desde o Android 10, todos os aparelhos novos vêm com <strong>criptografia de arquivo (FBE)</strong> ligada por padrão — os dados em <code>/data</code> (inclusive o diretório privado do Termux, onde ficam suas chaves SSH) só são legíveis depois de desbloquear a tela com PIN/senha/biometria. Nos Pixel 7 Pro isso é hardware-backed (Titan M2): a chave de criptografia vive num chip seguro e não sai de lá.</p>
+<ul>
+  <li><strong>Bloqueio de tela forte</strong>: PIN de 6+ dígitos ou senha — biometria sozinha não vale como "algo que você sabe";</li>
+  <li><strong>Timeout curto</strong>: configure a tela para bloquear em 30 segundos — root + celular desbloqueado na mão de outra pessoa é o pior cenário;</li>
+  <li><strong>Backup das chaves em lugar seguro</strong>: copie <code>~/.ssh/id_rsa</code> para o PC/um pendrive criptografado. Perdeu a chave privada = perdeu o acesso SSH (não existe "recuperar senha" de chave);</li>
+  <li><strong>Backups do Termux</strong>: o próprio Termux não criptografa backups, então guarde <code>termux-backup</code> em um destino criptografado (nuvem com 2FA ou PC via rsync sobre SSH).</li>
+</ul>
+
+<hr>
+
+<h2>Endurecendo o <code>sshd_config</code> do Termux</h2>
+<p>Além da senha e da chave, dá para endurecer o próprio servidor editando <code>$PREFIX/etc/ssh/sshd_config</code> no Termux. As linhas que fazem diferença no celular:</p>
+<pre class="file" data-file="$PREFIX/etc/ssh/sshd_config (trechos)">Port 8022
+# só chave: depois de copiar sua chave pública, desligue a senha
+PasswordAuthentication no
+PermitRootLogin no
+# ouça só no IP do Wi-Fi, não em todas as interfaces
+ListenAddress 192.168.1.42
+# timeout de inatividade: conexão esquecida não fica aberta para sempre
+ClientAliveInterval 300
+ClientAliveCountMax 2</pre>
+<p>Depois de editar, reinicie o serviço (<code>sv down sshd</code> ou mate o processo e rode <code>sshd</code> de novo) e teste do PC: <code>ssh ana@192.168.1.42 -p 8022</code>. Se cair direto na chave (sem pedir senha), o endurecimento funcionou.</p>
+
+<hr>
+
+<h2>Erros de segurança que derrubam servidor SSH</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Sintoma</th><th>Causa provável</th><th>Correção</th></tr>
+<tr><td><code>Permission denied (publickey)</code></td><td>chave pública não está em <code>authorized_keys</code> ou permissões erradas</td><td><code>chmod 700 ~/.ssh; chmod 600 ~/.ssh/authorized_keys</code></td></tr>
+<tr><td>Login cai para senha mesmo com chave</td><td><code>PasswordAuthentication</code> ainda ativo e o sshd ignorou a chave</td><td>confira permissões; desative senha no <code>sshd_config</code></td></tr>
+<tr><td>Porta 8022 não responde do PC</td><td>celular em outra rede, firewall do Wi-Fi (AP isolation) ou sshd parado</td><td>confirme IP com <code>ifconfig</code>; rode <code>sshd</code> de novo</td></tr>
+<tr><td><code>Connection refused</code></td><td>sshd não está rodando</td><td><code>sshd</code> no Termux (porta 8022)</td></tr>
+<tr><td>Muitas tentativas de login no log</td><td>porta exposta na internet + senha fraca</td><td>feche a porta no roteador; use só chave SSH</td></tr>
+</table>
+</div>
+
+<div class="warning">
+<strong>Nunca exponha a 8022 na internet "só para testar".</strong> Bots escaneiam a IPv4 inteira em horas; uma porta 8022 aberta com senha fraca cai em minutos. Se precisar de acesso remoto, prefira túnel reverso (<code>ngrok</code>, aula <a href="rede-no-celular.html">Rede no celular</a>) ou VPN (WireGuard), que não deixam a porta aberta no roteador.
+</div>
+
+<hr>
+
+<h2>Checklist: 5 minutos que valem o servidor inteiro</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>#</th><th>Verificação</th><th>Comando</th></tr>
+<tr><td>1</td><td>Senha forte, sem dados pessoais</td><td><code>passwd</code> (trocou essa semana?)</td></tr>
+<tr><td>2</td><td>Chave SSH criada e pública instalada</td><td><code>ssh-keygen</code> + <code>ssh-copy-id -p 8022 ana@192.168.1.42</code></td></tr>
+<tr><td>3</td><td>Permissões do .ssh corretas</td><td><code>chmod 700 ~/.ssh &amp;&amp; chmod 600 ~/.ssh/authorized_keys</code></td></tr>
+<tr><td>4</td><td>Porta 8022 só na rede local (nada aberto no roteador)</td><td>verifique o port forwarding do roteador — deve estar vazio</td></tr>
+<tr><td>5</td><td>Bloqueio de tela + criptografia do Android ativos</td><td>Configurações → Segurança do Pixel</td></tr>
+</table>
+</div>
+<p>Revise essa lista toda vez que for expor um serviço novo no celular. A segurança de um servidor não é um produto que você compra — é um hábito que você repete.</p>
+
+<hr>
+
+<h2>Pratique no Termux da Ana</h2>
+
+<div class="try" data-goal="Senha alterada ✓" data-solucao="passwd">
+<p class="try-task"><strong>Missão:</strong> troque a senha do usuário <code>ana</code> com <code>passwd</code>. Veja o aviso <code>BAD PASSWORD: too short</code> quando a senha é curta e complete até aparecer <code>Senha alterada ✓</code>.</p>
+</div>
+
+<div class="try" data-goal="Your identification has been saved" data-solucao="ssh-keygen">
+<p class="try-task"><strong>Missão:</strong> gere um par de chaves SSH com <code>ssh-keygen</code> e encontre a linha <code>Your identification has been saved</code> com o fingerprint <code>SHA256:...</code>. Depois rode <code>sshd</code> para ver a porta 8022 no ar.</p>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Com <code>sshd</code> ligado, a senha do Termux protege um servidor SSH na porta <strong>8022</strong> — trate-a como senha de banco.</li>
+  <li><code>passwd</code> troca a senha; use frase longa (comprimento &gt; complexité) e nada de dados pessoais.</li>
+  <li><code>ssh-keygen</code> cria o par de chaves: privada no PC, pública no celular (<code>authorized_keys</code>).</li>
+  <li>Permissões corretas: <code>~/.ssh</code> = 700, <code>authorized_keys</code> = 600 — senão o sshd ignora a chave.</li>
+  <li>Porta 8022 só na rede local; na internet, só com chave SSH e túnel/VPN, nunca aberta.</li>
+  <li>A criptografia do Android (ativa nos Pixel) é a proteção física: sem o PIN da tela, os dados não abrem.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="rede-no-celular.html">Rede no celular</a> — <code>ifconfig</code>, <code>ping</code>, <code>nmap localhost</code> para ver as portas 8022/8080 abertas e o túnel reverso com <code>ngrok</code> para publicar sem abrir porta no roteador.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

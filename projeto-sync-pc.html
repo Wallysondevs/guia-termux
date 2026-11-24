@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Projeto 3 — Sincronizar celular ↔ PC com rsync/ssh (sshd na porta 8022) | Guia Termux</title>
+<meta name="description" content="Projeto prático de Termux: transforme o celular em um servidor de arquivos — suba o sshd na porta 8022 (sshd rodando ✓, conecte com ssh ana@192.168.1.42 -p 8022), gere chaves SSH com ssh-keygen e troque a senha com passwd, e do PC envie/receba arquivos com rsync para ~/storage/shared (Sincronizado com o PC ✓). Entenda por que o IP pode mudar (ifconfig), a anatomia do rsync -avz -e 'ssh -p 8022' e o fluxo de backup do PC para o celular. Missões no terminal simulado ana@android.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Projeto 3 — <span class="hl">sincronizar celular ↔ PC</span> com rsync + sshd</h1>
+
+<p class="intro">Até aqui os projetos ficaram dentro do celular. Agora a Ana quer que o <strong>notebook converse com o celular</strong>: mandar o código do bot para o Termux, trazer as fotos do DCIM para o PC e deixar um backup rodando. A ponte é o <code>sshd</code> no celular (porta 8022) + o <code>rsync</code> no PC, que copia só o que mudou — o mesmo protocolo que sincroniza servidores no mundo inteiro. O destino no celular é a pasta <code>~/storage/shared</code>, que é a raiz da memória interna vista pelo Termux (veja <a href="storage.html">storage</a>).</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A subir o servidor SSH no celular com <code>sshd</code> — porta 8022, IP <code>192.168.1.42</code> (aulas: <a href="sshd.html">sshd no Termux</a>, <a href="seguranca-termux.html">segurança</a>).</li>
+  <li>A preparar o acesso seguro: <code>passwd</code> (senha forte) e <code>ssh-keygen</code> (login por chave, sem digitar senha).</li>
+  <li>A enviar e receber arquivos do PC com <code>rsync -avz -e "ssh -p 8022" … ana@192.168.1.42:~/storage/shared/</code>.</li>
+  <li>Por que o IP do celular pode mudar (<code>ifconfig</code>) e como contornar (DHCP fixo no roteador ou apelido no <code>~/.ssh/config</code> do PC).</li>
+  <li>A montar o fluxo de backup: o script <code>backup.sh</code> no celular + o <code>rsync</code> no PC.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>Passo 1 — subir o sshd no celular</h2>
+<p>O Termux traz o servidor SSH no pacote <code>openssh</code>. A Ana instala e sobe o <code>sshd</code> — ele abre a porta <strong>8022</strong> (no Android, portas abaixo de 1024 exigem root, então o Termux usa 8022 por convenção):</p>
+
+<pre class="term" data-host="android">$ pkg install openssh
+The following NEW packages will be installed:
+  openssh
+0 upgraded, 1 newly installed, 0 to remove.
+Setting up openssh (9.6p1) ...
+openssh instalado ✓
+$ sshd
+Iniciando sshd na porta 8022...
+sshd rodando ✓ — conecte do PC com:
+  ssh ana@192.168.1.42 -p 8022</pre>
+
+<div class="try" data-goal="sshd rodando ✓" data-solucao="sshd">
+<p class="try-task"><strong>Missão:</strong> suba o servidor SSH no simulador: digite <code>sshd</code> — a saída confirma <code>sshd rodando ✓</code> e mostra o comando de conexão <code>ssh ana@192.168.1.42 -p 8022</code>.</p>
+</div>
+
+<dl class="anatomy">
+  <dt>sshd</dt><dd>o servidor SSH (daemon) — fica ouvindo conexões na porta 8022 do Termux</dd>
+  <dt>8022</dt><dd>porta alta, obrigatória para apps sem root no Android (a 22 só com root)</dd>
+  <dt>ssh ana@192.168.1.42 -p 8022</dt><dd>do PC: usuário <code>ana</code> no IP do celular (pegue com <code>ifconfig</code>), porta 8022</dd>
+</dl>
+
+<p>Uma vez no ar, o <code>sshd</code> continua rodando até o celular reiniciar ou o processo morrer — e dá para subir de novo a qualquer momento rodando <code>sshd</code> outra vez (se já estiver no ar, ele avisa). O <code>nmap</code> confirma a porta aberta junto com a do site do projeto 1:</p>
+
+<pre class="term" data-host="android">$ nmap localhost
+Starting Nmap 7.94 (simulado)
+Host 192.168.1.42 is up.
+PORT     STATE SERVICE
+8022/tcp open  ssh
+8080/tcp open  http
+Nmap done: 1 IP address scanned ✓</pre>
+
+<hr>
+
+<h2>Passo 2 — senha forte e chave SSH (segurança antes de abrir a porta)</h2>
+<p>Antes de conectar do PC, a Ana blinda o acesso — porque um celular com SSH aberto no Wi-Fi é um alvo (veja <a href="seguranca-termux.html">chaves SSH, senha forte e criptografia</a>):</p>
+
+<pre class="term" data-host="android">$ passwd
+New password: ••••••••
+BAD PASSWORD: too short
+New password: ••••••••
+Senha alterada ✓ (simulado)
+$ ssh-keygen
+Gerando par de chaves RSA 4096...
+Your identification has been saved in /data/data/com.termux/files/home/.ssh/id_rsa.
+Fingerprint: SHA256:TermuxAna123</pre>
+
+<p>Depois ela copia a <strong>chave pública</strong> para o próprio servidor autorizado (<code>~/.ssh/authorized_keys</code>) — no mundo real, com <code>ssh-copy-id -p 8022 ana@192.168.1.42</code> rodado <strong>do PC</strong>. A partir daí o login é por chave, sem digitar senha, e dá para desativar a senha no <code>sshd_config</code> (<code>PasswordAuthentication no</code>) para endurecer ainda mais.</p>
+
+<div class="warn"><strong>SSH aberto no Wi-Fi público é risco:</strong> se o celular estiver com o sshd no ar numa rede pública (shopping, café), qualquer um na mesma rede pode tentar adivinhar a senha. Regras de bolso: senha forte sempre, chave SSH sempre que possível, e se não for usar, mate o <code>sshd</code> (<code>pkill sshd</code>). Nunca exponha a 8022 na internet via ngrok — ao contrário do site estático, SSH dá shell completo.</div>
+
+<hr>
+
+<h2>Passo 3 — conectar do PC e mandar arquivos com rsync</h2>
+<p>Com o <code>sshd</code> no ar, o PC enxerga o celular como qualquer servidor Linux. Primeiro o teste de conexão e a confirmação do endereço:</p>
+
+<pre class="term">$ # comandos rodados no PC (notebook da Ana), não no celular:
+$ ssh ana@192.168.1.42 -p 8022
+ana@android:~$ whoami
+u0_a231 (ana)
+ana@android:~$ pwd
+/data/data/com.termux/files/home
+ana@android:~$ ls
+backup.sh  storage  .bashrc  .termux  projetos</pre>
+
+<p>O <code>rsync</code> é o canivete suíço da sincronização: ele compara origem e destino arquivo por arquivo (tamanho + data) e transfere <strong>somente a diferença</strong> — por isso rodar de novo é quase instantâneo. A sintaxe que a Ana usa para mandar a pasta do projeto do PC para o celular:</p>
+
+<pre class="term">$ # no PC: manda ~/projetos do notebook para o celular
+$ rsync -avz -e "ssh -p 8022" ~/projetos/ ana@192.168.1.42:~/projetos/
+sending incremental file list
+bot/bot.py
+site/index.html
+...
+Sincronizado com o PC ✓</pre>
+
+<dl class="anatomy">
+  <dt>rsync</dt><dd>o programa que sincroniza diretórios entre duas máquinas (ou duas pastas locais)</dd>
+  <dt>-a</dt><dd>modo "arquivo": preserva permissões, donos, datas e copia recursivamente (atalho para -rlptgoD)</dd>
+  <dt>-v</dt><dd>verbose: lista cada arquivo transferido</dd>
+  <dt>-z</dt><dd>comprime durante a transferência — economiza banda no Wi-Fi/4G</dd>
+  <dt>-e "ssh -p 8022"</dt><dd>diz ao rsync para transportar os dados por um túnel SSH na porta 8022 (criptografado)</dd>
+  <dt>~/projetos/ ana@192.168.1.42:~/projetos/</dt><dd>origem e destino — o destino leva <code>usuario@ip:caminho</code>; a barra no fim copia o <em>conteúdo</em> da pasta</dd>
+</dl>
+
+<div class="try" data-goal="Sincronizado com o PC ✓" data-solucao="rsync">
+<p class="try-task"><strong>Missão:</strong> faça a sincronização no simulador: com o <code>sshd</code> no ar (missão anterior), digite <code>rsync</code> — a saída termina com <code>Sincronizado com o PC ✓</code>.</p>
+</div>
+
+<p>E no sentido contrário — traer as fotos do celular para o PC — é só inverter origem e destino, apontando para o storage (precisa do <code>termux-setup-storage</code> primeiro, senão dá <code>Permission denied</code>):</p>
+
+<pre class="term" data-host="android">$ termux-setup-storage
+Setting up storage access...
+Links criados em ~/storage:
+  dcim -> /storage/emulated/0/DCIM
+  ...
+Storage configurado ✓ (aceite a permissão no Android)
+$ ls ~/storage
+dcim  downloads  movies  music  pictures  shared</pre>
+
+<pre class="term">$ # no PC: puxa o DCIM do celular para ~/Fotos/ana-celular
+$ rsync -avz -e "ssh -p 8022" ana@192.168.1.42:~/storage/shared/DCIM/ ~/Fotos/ana-celular/
+sending incremental file list
+IMG_20240501.jpg
+IMG_20240502.jpg
+...
+Sincronizado com o PC ✓</pre>
+
+<hr>
+
+<h2>Passo 4 — o backup que a Ana já tinha: backup.sh + log</h2>
+<p>O celular da Ana já tem um <code>backup.sh</code> na home — é o script que o projeto de fotos vai agendar. O PC consegue ver e rodar ele por SSH, e o log diz se rodou:</p>
+
+<pre class="term" data-host="android">$ cat backup.sh
+#!/data/data/com.termux/files/usr/bin/bash
+echo "backup iniciado"
+tar -czf ~/backup.tar.gz ~/storage/shared/DCIM
+echo "backup concluido"
+$ cat backup.log
+backup iniciado
+backup concluido
+backup iniciado
+backup concluido</pre>
+
+<pre class="term">$ # no PC: manda o backup compactado do celular para a pasta de backups
+$ rsync -avz -e "ssh -p 8022" ana@192.168.1.42:~/backup.tar.gz ~/Backups/celular/
+sending incremental file list
+backup.tar.gz
+1.204.800 bytes  100%  2.34MB/s
+Sincronizado com o PC ✓</pre>
+
+<p>Esse é o fluxo completo do projeto: o celular roda o <code>backup.sh</code> (compacta o DCIM em <code>~/backup.tar.gz</code>), e o PC puxa o <code>.tar.gz</code> por rsync/SSH — backup do celular no notebook sem cabo, sem nuvem, só pela rede local.</p>
+
+<hr>
+
+<h2>Passo 5 — o IP muda? apelido no SSH config</h2>
+<p>Um detalhe chato do mundo real: o roteador pode dar outro IP para o celular a cada reconexão, e aí <code>ana@192.168.1.42</code> para de funcionar. A solución sem mexer no roteador é um <strong>apelido</strong> no <code>~/.ssh/config</code> do PC, depois de conferir o IP atual com <code>ifconfig</code> no celular:</p>
+
+<pre class="file" data-file="~/.ssh/config (no PC)">Host celular
+    HostName 192.168.1.42
+    Port 8022
+    User ana
+    IdentityFile ~/.ssh/id_rsa</pre>
+
+<pre class="term">$ # no PC, agora basta:
+$ ssh celular
+$ rsync -avz -e "ssh" ~/Backups/ celular:~/storage/shared/Backups/</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Direção</th><th>Comando (no PC)</th><th>Para onde vai</th></tr>
+<tr><td>PC → celular</td><td><code>rsync -avz -e "ssh -p 8022" ~/projetos/ ana@192.168.1.42:~/projetos/</code></td><td><code>~/projetos</code> do celular</td></tr>
+<tr><td>Celular → PC (fotos)</td><td><code>rsync -avz -e "ssh -p 8022" ana@192.168.1.42:~/storage/shared/DCIM/ ~/Fotos/</code></td><td><code>~/Fotos</code> do PC</td></tr>
+<tr><td>Celular → PC (backup)</td><td><code>rsync -avz -e "ssh -p 8022" ana@192.168.1.42:~/backup.tar.gz ~/Backups/</code></td><td><code>~/Backups</code> do PC</td></tr>
+<tr><td>Só arquivos novos/alterados</td><td>adicione <code>--update</code> ou deixe o rsync decidir (ele compara tamanho+data)</td><td>repetir o comando é barato</td></tr>
+<tr><td>Apagar no destino o que saiu da origem</td><td>adicione <code>--delete</code> (cuidado!)</td><td>espelha exatamente — teste sem antes</td></tr>
+</table>
+</div>
+
+<div class="warn"><strong>--delete apaga de verdade:</strong> <code>rsync --delete</code> faz o destino ficar <em>idêntico</em> à origem — se você mandar a pasta errada, apaga arquivos no celular. Regra: teste primeiro sem <code>--delete</code> (com <code>-n</code>/<code>--dry-run</code> para simular) e só depois habilite.</div>
+
+<div class="warn"><strong>Mesmo Wi-Fi:</strong> celular e PC precisam estar na <strong>mesma rede</strong> (mesmo Wi-Fi, mesma faixa de IP). Se o <code>ping 192.168.1.42</code> do PC não responde, ou estão em redes diferentes (ex.: Wi-Fi 2,4 GHz vs 5 GHz separados), ou o firewall do roteador isola dispositivos ("AP isolation").</div>
+
+<hr>
+
+<h2>Diagnóstico: quando o PC não alcança o celular</h2>
+<p>Deu <code>Connection timed out</code>? Siga a escada do mais simples para o mais chato:</p>
+
+<pre class="term" data-host="android">$ ifconfig
+wlan0: flags=4163&lt;UP,BROADCAST,RUNNING,MULTICAST&gt;
+        inet 192.168.1.42  netmask 255.255.255.0
+        ether dc:a6:32:11:22:33
+
+lo: inet 127.0.0.1
+$ ping -c 1 8.8.8.8
+PING 8.8.8.8: 56 data bytes
+64 bytes: icmp_seq=0 ttl=117 time=23.4 ms
+1 packets transmitted, 1 packets received, 0.0% packet loss ✓</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Teste</th><th>Onde roda</th><th>Se falhar</th></tr>
+<tr><td><code>ping -c 1 8.8.8.8</code></td><td>celular</td><td>celular sem internet — o rsync por SSH não vai sair</td></tr>
+<tr><td><code>ping 192.168.1.42</code></td><td>PC</td><td>celular não está na mesma rede ou o IP mudou (rode <code>ifconfig</code> no celular)</td></tr>
+<tr><td><code>nmap localhost</code> no celular</td><td>celular</td><td>se não listar <code>8022/tcp open ssh</code>, o <code>sshd</code> não subiu — rode <code>sshd</code> de novo</td></tr>
+<tr><td><code>ssh -p 8022 ana@192.168.1.42</code></td><td>PC</td><td>se conecta mas pede senha e não aceita a chave: rode <code>ssh-keygen</code> no celular e copie a chave com <code>ssh-copy-id</code></td></tr>
+<tr><td><code>ls ~/storage</code> por SSH</td><td>celular</td><td>se der <code>Permission denied</code>, rode <code>termux-setup-storage</code> e aceite a permissão</td></tr>
+</table>
+</div>
+
+<p>E um detalhe que salva tempo: no Termux, o <code>sshd</code> precisa ser religado depois de reiniciar o celular (ou quando o app é morto pelo sistema). Muita gente automatiza isso com um script em <code>~/.termux/boot/</code> — a mesma ideia do <code>start.sh</code> do projeto do bot.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>O celular vira servidor de arquivos com <code>sshd</code> na porta 8022 — conecte do PC com <code>ssh ana@192.168.1.42 -p 8022</code> (<code>sshd rodando ✓</code>).</li>
+  <li>Segurança primeiro: <code>passwd</code> com senha forte (<code>Senha alterada ✓</code>) e <code>ssh-keygen</code> para login por chave (<code>Your identification has been saved…</code>), sem senha.</li>
+  <li><code>rsync -avz -e "ssh -p 8022" origem destino</code> copia só o que mudou, criptografado pelo SSH — termina com <code>Sincronizado com o PC ✓</code>.</li>
+  <li>O destino mágico é <code>~/storage/shared</code> (= a memória interna, depois do <code>termux-setup-storage</code>): dá para puxar <code>DCIM</code> (fotos) e mandar <code>backup.tar.gz</code>.</li>
+  <li>O IP do celular pode mudar: confira com <code>ifconfig</code> e crie um apelido <code>Host celular</code> no <code>~/.ssh/config</code> do PC.</li>
+  <li>Cuidado com <code>--delete</code> e teste com <code>--dry-run</code>; celular e PC precisam estar no mesmo Wi-Fi.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="projeto-fotos-auto.html">Projeto 4 — Backup automático de fotos</a> — agende o <code>backup.sh</code> a cada 30 minutos com <code>termux-job-scheduler</code> e <code>crontab</code>, e confira o <code>backup.log</code>.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

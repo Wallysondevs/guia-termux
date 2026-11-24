@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seus primeiros comandos no Android: whoami, pwd, ls, uname, termux-info | Guia Termux</title>
+<meta name="description" content="Os primeiros comandos no Termux: whoami mostra o usuário do app (u0_a231, a Ana), pwd mostra a home privada /data/data/com.termux/files/home, ls lista os arquivos, uname -a revela o kernel Linux com Android 14, termux-info mostra o aparelho (Pixel 7 Pro, Snapdragon 8 Gen 2, 8 GB) e help lista os comandos do simulador. Com anatomia do prompt e tabela de referência — experimente no terminal simulado.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Seus <span class="hl">primeiros comandos</span> no Android</h1>
+
+<p class="intro">Toda vez que você abre o Termux, cai num prompt <code>ana@android:~$</code> esperando um comando. Nesta aula você dá os primeiros passos de qualquer Linux — mas vendo o <strong>Android por dentro</strong>: quem é o usuário do app (<code>whoami</code> → <code>u0_a231</code>), onde fica a home (<code>pwd</code>), o que tem nela (<code>ls</code>), qual kernel está rodando (<code>uname -a</code> → <strong>Android 14</strong>) e as informações do aparelho (<code>termux-info</code>).</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li><code>whoami</code> — quem sou eu no Android: o app roda como usuário próprio (<code>u0_a231 (ana)</code>).</li>
+  <li><code>pwd</code> — onde estou: a home privada <code>/data/data/com.termux/files/home</code>.</li>
+  <li><code>ls</code> — o que tem aqui: <code>backup.sh  storage  .bashrc  .termux  projetos</code>.</li>
+  <li><code>uname -a</code> — o kernel Linux do Android (versão, arquitetura <code>aarch64</code>, <strong>Android 14</strong>).</li>
+  <li><code>termux-info</code> — o aparelho inteiro: Pixel 7 Pro, Snapdragon 8 Gen 2, 8 GB de RAM.</li>
+  <li><code>help</code> e o erro <code>command not found</code> — como pedir ajuda e o que acontece com comando errado.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>Quem sou eu? <code>whoami</code></h2>
+<p>No PC, você provavelmente é <code>ana</code> ou <code>root</code>. No Android, cada app ganha um usuário Linux próprio — e o Termux não é diferente. O primeiro comando de qualquer terminal é se apresentar:</p>
+
+<div class="try" data-goal="u0_a231 (ana)" data-solucao="whoami">
+<p class="try-task"><strong>Missão:</strong> digite <code>whoami</code> e aperte <kbd>Enter</kbd>. A saída deve ser <code>u0_a231 (ana)</code> — o usuário <code>u0_a231</code> é a "Ana" dentro do Android.</p>
+</div>
+
+<pre class="term" data-host="android">$ whoami
+u0_a231 (ana)</pre>
+
+<p>O número <code>u0_a231</code> é o <strong>UID</strong> que o Android atribui ao app (cada app instalado ganha um: <code>u0_a231</code>, <code>u0_a232</code>…). O Termux mostra o nome legível entre parênteses. Isso explica por que o Termux <strong>não consegue ler</strong> os arquivos de outros apps: no Linux, cada usuário só entra na própria casa.</p>
+
+<dl class="anatomy">
+  <dt>whoami</dt><dd>"who am I" — imprime o usuário atual. Um único comando, sem opções.</dd>
+</dl>
+
+<hr>
+
+<h2>Onde estou? <code>pwd</code> e <code>ls</code></h2>
+<p>O segundo comando responde "em que pasta estou?". No Termux, a home não é <code>/home/ana</code> — é a pasta privada do app:</p>
+
+<pre class="term" data-host="android">$ pwd
+/data/data/com.termux/files/home
+$ ls
+backup.sh  storage  .bashrc  .termux  projetos</pre>
+
+<p>E o terceiro lista o que tem nessa pasta:</p>
+
+<pre class="term" data-host="android">$ ls -la ~
+total 20
+drwxr-xr-x 2 u0_a231 u0_a231 4096 backup.sh
+drwxrwxr-x 2 u0_a231 u0_a231 4096 storage
+-rw------- 1 u0_a231 u0_a231  220 .bashrc
+drwx------ 3 u0_a231 u0_a231 4096 .termux
+drwxr-xr-x 4 u0_a231 u0_a231 4096 projetos</pre>
+
+<ul>
+  <li><code>backup.sh</code> — script de backup da Ana (você vai conhecê-lo na automação);</li>
+  <li><code>storage</code> — a pasta-ponte para fotos e arquivos do celular (só funciona depois do <code>termux-setup-storage</code>, aula <a href="storage.html">storage</a>);</li>
+  <li><code>.bashrc</code> — arquivo de configuração do bash (começa com ponto = arquivo oculto, o <code>ls</code> normal não mostra);</li>
+  <li><code>.termux</code> — configurações do próprio Termux;</li>
+  <li><code>projetos</code> — pasta de códigos dela.</li>
+</ul>
+
+<div class="warn"><strong>Arquivos ocultos:</strong> no Linux, arquivos que começam com <code>.</code> (ponto) são ocultos. O <code>ls</code> sozinho não os mostra — use <code>ls -a</code> (ou <code>ls -la</code> para ver detalhes). É lá que moram as configurações: <code>.bashrc</code>, <code>.ssh</code>, <code>.termux</code>…</div>
+
+<dl class="anatomy">
+  <dt>pwd</dt><dd>"print working directory" — imprime a pasta atual em caminho absoluto.</dd>
+  <dt>ls</dt><dd>"list" — lista arquivos da pasta atual.</dd>
+  <dt>-la</dt><dd>Opções combinadas: <code>-l</code> (formato longo, com permissões e dono) + <code>-a</code> (mostra ocultos).</dd>
+  <dt>~</dt><dd>Atalho para a home do usuário — <code>ls ~</code> é o mesmo que <code>ls /data/data/com.termux/files/home</code>.</dd>
+</dl>
+
+<hr>
+
+<h2>Qual sistema é esse? <code>uname -a</code></h2>
+<p>O comando que revela o kernel — e é aqui que o Android aparece de verdade:</p>
+
+<div class="try" data-goal="Android 14" data-solucao="uname -a">
+<p class="try-task"><strong>Missão:</strong> rode <code>uname -a</code>. Na saída, procure a linha que termina com <code>Android 14</code> — é o kernel Linux do celular da Ana.</p>
+</div>
+
+<pre class="term" data-host="android">$ uname -a
+Linux localhost 5.10.137-android14 #1 SMP PREEMPT
+Android 14 · aarch64</pre>
+
+<p>Leia a saída: <code>Linux localhost 5.10.137-android14</code> — ou seja, <strong>é Linux de verdade</strong>, kernel 5.10, compilado para Android 14 (<code>android14</code> no nome). A arquitetura <code>aarch64</code> é o processador ARM de 64 bits do Pixel 7 Pro. Isso é útil quando você baixa programas: no Termux você baixa pacotes <code>aarch64</code>, nunca os de PC (x86_64).</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando</th><th>Mostra</th><th>Na máquina da Ana</th></tr>
+<tr><td><code>uname -s</code></td><td>Só o nome do kernel</td><td><code>Linux</code></td></tr>
+<tr><td><code>uname -m</code></td><td>Arquitetura do processador</td><td><code>aarch64</code></td></tr>
+<tr><td><code>uname -r</code></td><td>Versão do kernel</td><td><code>5.10.137-android14</code></td></tr>
+<tr><td><code>uname -a</code></td><td>Tudo isso junto</td><td>inclui <code>Android 14</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>O aparelho inteiro: <code>termux-info</code></h2>
+<p>Além do kernel, o Termux sabe ler as informações do aparelho. É o comando de "ficha técnica" do celular:</p>
+
+<pre class="term" data-host="android">$ termux-info
+TERMUX_VERSION=0.118.0
+ANDROID_VERSION=14
+CPU: Snapdragon 8 Gen 2
+RAM total: 8 GB
+Storage: 128 GB
+Shell: /data/data/com.termux/files/usr/bin/bash
+Device: Pixel 7 Pro (rooted)</pre>
+
+<p>Repare em dois pontos: <code>ANDROID_VERSION=14</code> (confere com o <code>uname -a</code>) e <code>Device: Pixel 7 Pro (rooted)</code> — neste guia o celular da Ana é rootado, o que abre o caminho do <code>adb</code> com privilégios de root lá na frente (<a href="adb.html">aula adb</a>).</p>
+
+<hr>
+
+<h2>Peça ajuda: <code>help</code> e o comando errado</h2>
+<p>Esqueceu os comandos? O próprio terminal lista os do simulador:</p>
+
+<pre class="term" data-host="android">$ help
+Termux simulado (ana@android):
+  pkg update | pkg install python | pkg list-installed | pkg search vim
+  termux-setup-storage   ls ~/storage
+  termux-battery-status | termux-toast 'oi' | termux-notification --title oi
+  adb devices | adb root | adb shell whoami
+  python -m http.server 8080 | sqlite3 meu.db "select 1;"
+  shell: ls cat pwd whoami uname clear echo help exit history</pre>
+
+<p>E se você digitar um comando que não existe, o bash avisa na hora:</p>
+
+<pre class="term" data-host="android">$ comnado-torto
+comnado-torto: command not found (simulado — tente 'help')</pre>
+
+<div class="warn"><strong>"command not found" é o erro mais comum de iniciante</strong> e quase sempre é só digitação errada (repare no exemplo acima: "comnado" no lugar de "comando"). Se um comando do guia não funcionar, confira a grafia — e rode <code>help</code> para ver a lista do que existe.</div>
+
+<hr>
+
+<h2>Mapa mental dos primeiros comandos</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando</th><th>Pergunta que responde</th><th>Saída na ana@android</th></tr>
+<tr><td><code>whoami</code></td><td>Quem sou eu?</td><td><code>u0_a231 (ana)</code></td></tr>
+<tr><td><code>pwd</code></td><td>Em que pasta estou?</td><td><code>/data/data/com.termux/files/home</code></td></tr>
+<tr><td><code>ls</code></td><td>O que tem aqui?</td><td><code>backup.sh  storage  .bashrc  .termux  projetos</code></td></tr>
+<tr><td><code>uname -a</code></td><td>Que kernel/sistema é esse?</td><td>kernel 5.10 + <code>Android 14</code>, <code>aarch64</code></td></tr>
+<tr><td><code>termux-info</code></td><td>Que aparelho é esse?</td><td>Pixel 7 Pro (rooted), Snapdragon 8 Gen 2, 8 GB</td></tr>
+<tr><td><code>help</code></td><td>Quais comandos existem?</td><td>lista do simulador</td></tr>
+<tr><td><code>clear</code></td><td>Limpar a tela</td><td>tela limpa</td></tr>
+</table>
+</div>
+
+<p>Esses comandos são muscle memory: você vai usar <code>whoami</code>, <code>pwd</code> e <code>ls</code> toda hora para se orientar — no celular, no PC, em qualquer servidor.</p>
+
+<hr>
+
+<h2>Dicas de navegação no terminal do celular</h2>
+<p>O Termux no Android tem teclado virtual, então alguns atalhos fazem muita diferença:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Atalho</th><th>O que faz</th></tr>
+<tr><td><kbd>Tab</kbd></td><td>Autocompleta comando, arquivo ou pasta (aperte duas vezes para ver as opções)</td></tr>
+<tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Navega pelo histórico de comandos (o seu <code>history</code>)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>Cancela o comando que está rodando (o famoso ^C)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td><td>Limpa a tela (igual ao <code>clear</code>)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>A</kbd> / <kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Vai para o início / fim da linha digitada</td></tr>
+<tr><td><kbd>cd</kbd> <code>pasta</code></td><td>Troca de pasta; <code>cd ~</code> ou só <code>cd</code> volta para a home; <code>cd -</code> volta para a pasta anterior</td></tr>
+</table>
+</div>
+
+<p>Experimente agora: rode <code>cd projetos</code>, depois <code>pwd</code> (vai mostrar <code>/data/data/com.termux/files/home/projetos</code>), depois <code>cd -</code> para voltar. No prompt, a pasta atual aparece depois dos dois pontos: <code>ana@android:~/projetos$</code>.</p>
+
+<pre class="term" data-host="android">$ cd projetos
+$ pwd
+/data/data/com.termux/files/home/projetos
+$ cd -
+/data/data/com.termux/files/home
+$ pwd
+/data/data/com.termux/files/home</pre>
+
+<hr>
+
+<h2>Lendo arquivos rapidinho: cat, echo e head</h2>
+<p>Três comandos que você vai usar o tempo todo para inspecionar arquivos sem abrir editor:</p>
+
+<pre class="term" data-host="android">$ cat ~/backup.sh
+#!/data/data/com.termux/files/usr/bin/bash
+echo "backup iniciado"
+tar -czf ~/backup.tar.gz ~/storage/shared/DCIM
+echo "backup concluido"
+$ cat ~/backup.log
+backup iniciado
+backup concluido
+backup iniciado
+backup concluido
+$ echo "oi do termux"
+oi do termux
+$ ls ~/storage | head -3
+dcim
+downloads
+movies</pre>
+
+<dl class="anatomy">
+  <dt>cat ARQUIVO</dt><dd>"concatenate" — despeja o conteúdo do arquivo na tela (ótimo para arquivos pequenos, como scripts e logs).</dd>
+  <dt>echo TEXTO</dt><dd>Imprime o texto (e variáveis: <code>echo $PWD</code>). Também grava em arquivo com <code>&gt;</code>.</dd>
+  <dt>head -3</dt><dd>Mostra só as 3 primeiras linhas — combinado com o pipe <code>|</code>, filtra a saída de outro comando.</dd>
+</dl>
+
+<p>O pipe <code>|</code> é o que torna o terminal poderoso: a saída de um comando vira a entrada do próximo. <code>ls ~/storage | head -3</code> = "liste o storage, mas só me mostre as 3 primeiras linhas".</p>
+
+<div class="warn"><strong>cat em arquivo grande trava o terminal</strong> (mostra tudo de uma vez). Para arquivos grandes, use <code>less arquivo</code> (navegue com setas, <kbd>q</kbd> para sair) ou <code>head</code>/<code>tail</code> para ver só o começo/fim: <code>tail -20 ~/backup.log</code> mostra as últimas 20 linhas.</div>
+
+<hr>
+
+<h2>Onde está cada comando? which e $PATH</h2>
+<p>Quando você digita <code>ls</code>, o shell procura um arquivo executável chamado <code>ls</code> numa lista de pastas (a variável <code>PATH</code>). O <code>which</code> mostra onde cada um está:</p>
+
+<pre class="term" data-host="android">$ which ls cat python
+/data/data/com.termux/files/usr/bin/ls
+/data/data/com.termux/files/usr/bin/cat
+/data/data/com.termux/files/usr/bin/python
+$ echo $PATH
+/data/data/com.termux/files/usr/bin:/data/data/com.termux/files/usr/bin/applets
+$ ls /data/data/com.termux/files/usr/bin | wc -l
+142</pre>
+
+<p>Todos os programas do Termux moram em <code>$PREFIX/bin</code> — por isso o <code>whoami</code>, o <code>pkg</code> e o <code>python</code> funcionam de qualquer pasta. Se um comando dá <code>command not found</code>, ou ele não está instalado (<code>pkg install</code>) ou não está no <code>PATH</code>.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>whoami</code> → <code>u0_a231 (ana)</code>: no Android cada app é um usuário Linux próprio (UID <code>u0_a231</code>).</li>
+  <li><code>pwd</code> → <code>/data/data/com.termux/files/home</code>: a home do Termux é a pasta privada do app.</li>
+  <li><code>ls</code> → <code>backup.sh  storage  .bashrc  .termux  projetos</code>; <code>ls -la</code> mostra também os ocultos (ponto no nome).</li>
+  <li><code>uname -a</code> revela o kernel real: <code>5.10.137-android14</code>, arquitetura <code>aarch64</code>, <strong>Android 14</strong>.</li>
+  <li><code>termux-info</code> mostra o aparelho: Pixel 7 Pro (rooted), Snapdragon 8 Gen 2, 8 GB de RAM, Termux 0.118.0.</li>
+  <li><code>help</code> lista os comandos; comando errado → <code>command not found</code> (geralmente erro de digitação).</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="storage.html">termux-setup-storage: acessar fotos e arquivos</a> — como dar permissão para o Termux ler o <code>~/storage</code> e o erro <code>Permission denied</code> que aparece antes disso.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

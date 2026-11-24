@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cola de erros comuns do Termux — Permission denied, Unable to locate package, command not found, SSH recusado | Guia Termux</title>
+<meta name="description" content="Cola de consulta rápida dos erros que mais aparecem no Termux: 'ls: cannot access … Permission denied' no ~/storage sem termux-setup-storage, 'Unable to locate package X' no pkg install, 'command not found' para comando inexistente, 'No matches found' no pkg search, conexão recusada na porta 8022 quando o sshd não está rodando e permissão negada da Termux-API. Tabela erro → mensagem real → causa → solução, exemplos no terminal ana@android e missões para provocar cada erro no simulador.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Cola de <span class="hl">erros</span> comuns do Termux — mensagem → causa → solução</h1>
+
+<p class="intro">No Termux, ao contrário do Linux de PC, os erros mais comuns <strong>não são de código</strong> — são de permissão do Android e de nome de pacote. Quase sempre a mensagem já entrega a causa (e às vezes até a dica). Nesta página estão as trombadas que mais aparecem na máquina da Ana, cada uma com a <strong>mensagem real</strong>, a causa e o conserto na hora.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A ler um erro do Termux em 3 passos: <strong>qual comando falhou</strong> → <strong>qual a mensagem exata</strong> → <strong>a dica que vem junto</strong>.</li>
+  <li><code>Permission denied</code> no <code>~/storage</code> — faltou <code>termux-setup-storage</code> + aceitar a permissão no Android.</li>
+  <li><code>Unable to locate package X</code> — nome errado ou falta <code>pkg update</code>.</li>
+  <li><code>command not found</code> — o comando não existe (ou o pacote não foi instalado).</li>
+  <li>Conexão SSH recusada na porta 8022 — o <code>sshd</code> não está rodando no celular.</li>
+  <li>Permissão negada da Termux-API — liberar no app Termux:API.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>Como ler um erro no terminal</h2>
+<dl class="anatomy">
+  <dt>ls ~/storage</dt><dd>o comando que você rodou</dd>
+  <dt>ls:</dt><dd>o programa que reclamou (quem emitiu o erro)</dd>
+  <dt>cannot access '…':</dt><dd>o que deu errado (não conseguiu acessar)</dd>
+  <dt>Permission denied</dt><dd>o motivo — permissão negada pelo Android/Termux</dd>
+</dl>
+<p>O padrão é sempre <code>programa: o que deu errado: motivo</code>. Quando o simulador imprime a dica embaixo (aquela linha com <code>(dica: …)</code>), é ela que resolve 90% dos casos.</p>
+
+<hr>
+
+<h2>A tabela dos erros mais comuns</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Erro</th><th>Mensagem real</th><th>Causa</th><th>Solução</th></tr>
+<tr><td><strong>Permission denied</strong> no storage</td><td><code>ls: cannot access '/data/data/com.termux/files/home/storage': Permission denied</code></td><td><code>~/storage</code> ainda não foi criado, ou a permissão do Android não foi aceita</td><td>rode <code>termux-setup-storage</code> e aceite a caixa de permissão na tela do celular</td></tr>
+<tr><td><strong>Pacote não existe</strong></td><td><code>Unable to locate package abacate</code></td><td>nome errado no repositório ou lista de pacotes desatualizada</td><td><code>pkg update</code> + confira o nome com <code>pkg search termo</code></td></tr>
+<tr><td><strong>Busca vazia</strong></td><td><code>No matches found for abacate</code></td><td>nenhum pacote casa com o termo</td><td>procure por outro termo (ex.: <code>pkg search ssh</code> → <code>openssh</code>)</td></tr>
+<tr><td><strong>Comando não existe</strong></td><td><code>abacate: command not found (simulado — tente 'help')</code></td><td>typo, ou o pacote que provê o comando não está instalado</td><td>rode <code>help</code> para ver a lista; instale o pacote certo com <code>pkg install</code></td></tr>
+<tr><td><strong>SSH recusado</strong></td><td><code>ssh: connect to host 192.168.1.42 port 8022: Connection refused</code></td><td>o <code>sshd</code> não está rodando no celular (ou porta/firewall errados)</td><td>no Termux rode <code>sshd</code>; confira IP com <code>ifconfig</code> e conecte com <code>ssh ana@192.168.1.42 -p 8022</code></td></tr>
+<tr><td><strong>Termux-API negada</strong></td><td>permissão negada ao rodar <code>termux-sms-list</code>/<code>termux-location</code></td><td>o app Termux:API não tem a permissão no Android</td><td>abra o app <strong>Termux:API</strong> → conceda SMS/Localização/Câmera; rode o comando uma vez e aceite a caixa</td></tr>
+<tr><td><strong>Arquivo não existe</strong></td><td><code>cat: xyz: No such file or directory</code></td><td>caminho errado ou arquivo apagado</td><td>confira com <code>ls</code> antes de <code>cat</code></td></tr>
+<tr><td><strong>Senha fraca</strong></td><td><code>BAD PASSWORD: too short</code> (no <code>passwd</code>)</td><td>a senha nova é curta demais</td><td>digite de novo uma senha longa com letras, números e símbolos → <code>Senha alterada ✓</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. Permission denied no ~/storage — o erro nº 1</h2>
+<pre class="term" data-host="android">$ ls ~/storage
+ls: cannot access '/data/data/com.termux/files/home/storage': Permission denied
+(dica: rode termux-setup-storage antes)</pre>
+<p><strong>Causa:</strong> o Android isola os apps: o Termux só enxerga o próprio diretório privado (<code>/data/data/com.termux/files</code>) até você dar acesso ao resto. O <code>termux-setup-storage</code> cria os links em <code>~/storage</code> e dispara a caixa de permissão do Android (SAF). <strong>Solução:</strong></p>
+<pre class="term" data-host="android">$ termux-setup-storage
+Setting up storage access...
+Links criados em ~/storage:
+  dcim -&gt; /storage/emulated/0/DCIM
+  downloads -&gt; /storage/emulated/0/Download
+  …
+Storage configurado ✓ (aceite a permissão no Android)
+$ ls ~/storage
+dcim  downloads  movies  music  pictures  shared</pre>
+<div class="warn"><strong>Se mesmo depois do setup ainda der Permission denied:</strong> abra o app de arquivos do Android, vá em <code>~/storage</code> pelo Termux, e na caixa de diálogo do sistema toque em <strong>"Permitir"/"Usar esta pasta"</strong> — o Android sometimes pede de novo depois de atualizar o app.</div>
+
+<hr>
+
+<h2>2. Unable to locate package — o erro nº 2 do pkg</h2>
+<pre class="term" data-host="android">$ pkg install node
+Unable to locate package node
+$ pkg search node
+nodejs/stable 20.11.1 nodejs
+$ pkg install nodejs
+Setting up nodejs (20.11.1) ...
+nodejs instalado ✓
+$ node --version
+v20.11.1</pre>
+<p><strong>Causa:</strong> o nome não existe no repositório Termux — no exemplo, o certo é <code>nodejs</code>, não <code>node</code>. A segunda causa é lista velha: rode <code>pkg update</code> primeiro. <strong>Solução:</strong> procure antes (<code>pkg search</code>) e instale pelo nome exato.</p>
+
+<hr>
+
+<h2>3. command not found — digitou errado ou não instalou</h2>
+<pre class="term" data-host="android">$ nmap localhost
+nmap: command not found (simulado — tente 'help')
+$ pkg install nmap
+Setting up nmap (7.94) ...
+nmap instalado ✓
+$ nmap localhost
+Starting Nmap 7.94 (simulado)
+Host 192.168.1.42 is up.
+PORT     STATE SERVICE
+8022/tcp open  ssh
+8080/tcp open  http
+Nmap done: 1 IP address scanned ✓</pre>
+<p><strong>Causa:</strong> ou é erro de digitação, ou o pacote que traz o comando ainda não foi instalado. O próprio simulador sugere <code>help</code>, que lista tudo o que existe na máquina da Ana. <strong>Solução:</strong> <code>help</code> para ver o que está disponível; <code>pkg install …</code> para instalar o que falta.</p>
+
+<hr>
+
+<h2>4. SSH recusado na 8022 — o sshd não está no ar</h2>
+<p>Do lado do PC, quando o celular não está ouvindo, o erro aparece assim:</p>
+<pre class="term" data-host="notebook">$ ssh ana@192.168.1.42 -p 8022
+ssh: connect to host 192.168.1.42 port 8022: Connection refused</pre>
+<p><strong>Causa:</strong> o <code>sshd</code> não está rodando no Termux (o Termux não inicia o servidor sozinho no boot, a menos que você configure), ou o IP/porta estão errados, ou o PC e o celular estão em redes diferentes. <strong>Solução, no celular:</strong></p>
+<pre class="term" data-host="android">$ sshd
+Iniciando sshd na porta 8022...
+sshd rodando ✓ — conecte do PC com:
+  ssh ana@192.168.1.42 -p 8022
+$ ifconfig
+wlan0: …
+        inet 192.168.1.42  netmask 255.255.255.0</pre>
+<p>A porta padrão do Termux é a <strong>8022</strong> (a 22 precisa de root). Sempre confira o IP atual com <code>ifconfig</code> — no Wi-Fi ele muda quando reconecta. Detalhes na aula <a href="sshd.html">sshd no Termux</a> e no FAQ de <a href="problemas.html">problemas comuns</a>.</p>
+
+<hr>
+
+<h2>5. Permissão da Termux-API negada</h2>
+<p>Comandos <code>termux-*</code> falham de formas diferentes: ou <code>command not found</code> (pacote <code>termux-api</code> não instalado) ou permissão negada pelo Android (app Termux:API sem a permissão). A causa é sempre a mesma: <strong>instale o pacote e o app, e conceda a permissão</strong>:</p>
+<pre class="term" data-host="android">$ pkg install termux-api
+termux-api instalado ✓
+$ termux-sms-list   « depois de liberar SMS no app Termux:API
+[{"number":"+5511999887766","body":"Seu código é 123456"},…]</pre>
+
+<hr>
+
+<h2>6. Erros de rede: ping, ifconfig e nmap</h2>
+<p>Quando o problema é a conexão (SSH recusado, ngrok não abre, PC não acha o celular), os três comandos abaixo diagnosticam:</p>
+<pre class="term" data-host="android">$ ping -c 1 8.8.8.8
+PING 8.8.8.8: 56 data bytes
+64 bytes: icmp_seq=0 ttl=117 time=23.4 ms
+1 packets transmitted, 1 packets received, 0.0% packet loss ✓
+$ ifconfig
+wlan0: flags=4163&lt;UP,BROADCAST,RUNNING,MULTICAST&gt;
+        inet 192.168.1.42  netmask 255.255.255.0
+$ nmap localhost
+PORT     STATE SERVICE
+8022/tcp open  ssh
+8080/tcp open  http
+Nmap done: 1 IP address scanned ✓</pre>
+<p>Se o <code>ping</code> falha, é DNS/conectividade; se o IP do <code>ifconfig</code> mudou, o endereço antigo do <code>ssh</code> está errado; se o <code>nmap localhost</code> não mostra a porta, o servidor (sshd/http) não está rodando. Cada erro desse trio tem a causa obvious depois de medir.</p>
+
+<hr>
+
+<h2>Checklist antes de chamar de "bug"</h2>
+<ol class="passo">
+  <li><code>pkg update</code> está em dia? (resolve <code>Unable to locate package</code>)</li>
+  <li><code>termux-setup-storage</code> foi rodado e a permissão aceita? (resolve <code>Permission denied</code> no storage)</li>
+  <li>O pacote do comando foi instalado? <code>pkg list-installed</code> lista; <code>help</code> mostra os comandos vivos.</li>
+  <li>O serviço está no ar? <code>sshd</code>, <code>python -m http.server</code>, <code>nginx</code> — <code>nmap localhost</code> confirma as portas.</li>
+  <li>O IP/porta estão certos? <code>ifconfig</code> no celular, <code>-p 8022</code> no ssh.</li>
+  <li>O app Termux:API tem as permissões? (resolve falhas de <code>termux-sms-list</code>, <code>termux-location</code>…)</li>
+</ol>
+
+<hr>
+
+<h2>Provoque os erros no simulador (treino de reconhecimento)</h2>
+
+<div class="try" data-goal="Permission denied" data-solucao="ls ~/storage">
+<p class="try-task"><strong>Missão 1 — Permission denied:</strong> rode <code>ls ~/storage</code> <strong>antes</strong> de configurar o storage e veja o erro completo. Depois rode <code>termux-setup-storage</code> e tente de novo — agora a lista aparece.</p>
+</div>
+
+<div class="try" data-goal="Unable to locate package" data-solucao="pkg install abacate">
+<p class="try-task"><strong>Missão 2 — pacote fantasma:</strong> rode <code>pkg install abacate</code> para ver <code>Unable to locate package abacate</code>. Depois rode <code>pkg search vim</code> e um comando inexistente tipo <code>abacate</code> para ver o <code>command not found</code>.</p>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Leia o erro no padrão <code>programa: problema: motivo</code> — e siga a dica impressa embaixo quando houver.</li>
+  <li><code>Permission denied</code> no <code>~/storage</code> → <code>termux-setup-storage</code> + aceitar no Android.</li>
+  <li><code>Unable to locate package X</code> → <code>pkg update</code> + nome certo via <code>pkg search</code> (ex.: <code>nodejs</code>, não <code>node</code>).</li>
+  <li><code>command not found</code> → <code>help</code> lista os comandos; instale o pacote que falta.</li>
+  <li>SSH recusado na 8022 → rode <code>sshd</code> no celular e confira o IP com <code>ifconfig</code>.</li>
+  <li>Termux-API negada → app <strong>Termux:API</strong> com as permissões liberadas.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="glossario.html">Glossário</a> — todos os termos do Termux (pkg, proot, adb, root, wake lock, ngrok, sshd, Termux-API…) explicados de A a Z.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

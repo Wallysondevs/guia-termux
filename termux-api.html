@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Termux-API: bateria, SMS, GPS, contatos e notificações pelo terminal | Guia Termux</title>
+<meta name="description" content="Termux-API no Termux: instale o pacote termux-api e o app Termux:API, dê as permissões no Android e use o terminal para ler bateria (termux-battery-status), SMS (termux-sms-list), GPS (termux-location), contatos (termux-contact-list) e enviar notificações (termux-notification) — com exemplos na máquina ana@android e missões no terminal simulado.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">Termux-API</span>: o celular inteiro dentro do terminal</h1>
+<p class="intro">Até aqui o Termux era "só" um Linux no bolso. A <strong>Termux-API</strong> transforma o terminal numa ponte para o <em>hardware e os dados do Android</em>: bateria, SMS, GPS, contatos, câmera, lanterna, notificações. Nesta aula você instala o pacote <code>termux-api</code> na máquina da Ana (<code>ana@android</code>) e começa a consultar o celular por linha de comando — o que abre caminho para scripts que <em>reagem ao mundo real</em>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Instalar o pacote <code>termux-api</code> e entender o app <strong>Termux:API</strong> (o "braço" no Android);</li>
+  <li>Dar as permissões certas nas configurações do Android (sem elas, tudo dá erro);</li>
+  <li>Ler a bateria com <code>termux-battery-status</code> (JSON com <code>"level": 87</code> e <code>"status": "Charging"</code>);</li>
+  <li>Ler SMS com <code>termux-sms-list</code>, GPS com <code>termux-location</code> e contatos com <code>termux-contact-list</code>;</li>
+  <li>Enviar notificações com <code>termux-notification --title ...</code>;</li>
+  <li>Um mapa de todos os comandos <code>termux-*</code> disponíveis.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>Os dois lados da Termux-API</h2>
+<p>A Termux-API tem <strong>duas partes</strong> que precisam estar instaladas: o <strong>pacote</strong> <code>termux-api</code> dentro do Termux (que instala os comandos <code>termux-*</code>) e o <strong>app Termux:API</strong> no Android (que acessa de fato o hardware e os dados do celular). É o app que recebe as chamadas e responde — por isso, se um comando responde <code>permission denied</code> ou <code>not found</code>, quase sempre o app está faltando ou sem permissão. No simulador da Ana, as duas partes já estão no lugar:</p>
+<pre class="term">$ pkg install termux-api
+The following NEW packages will be installed:
+  termux-api
+0 upgraded, 1 newly installed, 0 to remove.
+Setting up termux-api (0.50.1) ...
+termux-api instalado ✓</pre>
+<p>Num celular real, depois do <code>pkg install termux-api</code>, você instala o app <strong>Termux:API</strong> pela mesma fonte do Termux (F-Droid) — <strong>nunca pela Play Store</strong>, que tem uma versão quebrada — e concede as permissões em <em>Configurações → Apps → Termux:API → Permissões</em> (SMS, localização, contatos, câmera, lanterna...). Cada comando pede a permissão correspondente na primeira vez.</p>
+
+<div class="warn"><strong>Erro real de iniciante:</strong> rodar <code>termux-battery-status</code> sem o app Termux:API instalado (ou sem a permissão concedida) devolve erro em vez de dados. Se um comando <code>termux-*</code> "não existe" ou recusou acesso, verifique o app e as permissões antes de culpar o Termux — no simulador isso já está configurado, então dá para praticar tranquilo.</div>
+
+<hr>
+
+<h2>Bateria: <code>termux-battery-status</code></h2>
+<p>O primeiro comando clássico é ver a bateria do próprio celular pelo terminal — útil para scripts que decidem se dá para rodar um backup pesado agora ou é melhor esperar o carregador:</p>
+<pre class="term">$ termux-battery-status
+{
+  "level": 87,
+  "status": "Charging",
+  "temperature": 31.5,
+  "plugged": "AC",
+  "health": "Good"
+}</pre>
+<dl class="anatomy">
+  <dt>level</dt><dd>porcentagem atual da bateria (no exemplo, <code>87</code>) — é o campo que você mais vai usar em scripts.</dd>
+  <dt>status</dt><dd><code>Charging</code> (carregando), <code>Discharging</code> (na bateria) ou <code>Full</code>.</dd>
+  <dt>temperature</dt><dd>temperatura da bateria em °C — acima de ~40 °C o Android começa a limitar a carga.</dd>
+  <dt>plugged</dt><dd>onde está ligado: <code>AC</code>, <code>USB</code> ou <code>Wireless</code>.</dd>
+  <dt>health</dt><dd>saúde da bateria (<code>Good</code>, <code>Dead</code>, <code>Overheat</code>...).</dd>
+</dl>
+<p>A saída é <strong>JSON puro</strong>, então dá para tratar com qualquer linguagem instalada (python, node) ou com <code>jq</code> — por exemplo, um script que só roda o backup quando <code>"status": "Charging"</code>, para não drenar a bateria do celular no meio da rua.</p>
+
+<hr>
+
+<h2>SMS e contatos: <code>termux-sms-list</code> e <code>termux-contact-list</code></h2>
+<p>Com a permissão de SMS concedida, o terminal lê as mensagens — imagine um script que avisa no Telegram quando chega um SMS do banco, ou que procura o código de verificação automaticamente:</p>
+<pre class="term">$ termux-sms-list
+[{"number":"+5511999887766","body":"Seu código é 123456"},{"number":"+5511912345678","body":"Entrega confirmada"}]</pre>
+<pre class="term">$ termux-contact-list
+[{"name":"Mãe","number":"+5511999887766"},{"name":"Max","number":"+5511912345678"}]</pre>
+<p>Ambos devolvem um <strong>array JSON</strong>: cada SMS vem com <code>number</code> e <code>body</code>; cada contato, com <code>name</code> e <code>number</code>. Dá para cruzar os dois — ler os SMS e trocar o número pelo nome do contato — usando um script em python, já que o Termux traz o <code>python</code> instalável com um comando (<a href="pkg-apt.html">revise pkg</a> se precisar).</p>
+
+<div class="warn"><strong>Permissão de SMS e privacidade:</strong> ler SMS e contatos expõe dados pessoais. No Android 14, o Termux:API precisa das permissões de <em>SMS</em> e <em>Contatos</em> liberadas nas configurações do app — e scripts que enviam SMS (ex.: <code>termux-sms-send</code>) podem gerar custo na sua operadora. Use com responsabilidade, só em celular de uso pessoal.</div>
+
+<hr>
+
+<h2>Localização: <code>termux-location</code></h2>
+<p>Com o GPS (ou a rede) ligado, o comando devolve a posição atual do celular em JSON — a base de automações do tipo "quando eu chegar em casa, avisar no grupo da família" (combine com <code>termux-notification</code> e um laço em script):</p>
+<pre class="term">$ termux-location
+{
+  "latitude": -23.5505,
+  "longitude": -46.6333,
+  "altitude": 760.0,
+  "provider": "gps"
+}</pre>
+<dl class="anatomy">
+  <dt>latitude / longitude</dt><dd>coordenadas em graus decimais — no exemplo, o centro de São Paulo (<code>-23.5505, -46.6333</code>).</dd>
+  <dt>altitude</dt><dd>altura em metros sobre o nível do mar (<code>760.0</code>).</dd>
+  <dt>provider</dt><dd>quem forneceu a localização: <code>gps</code>, <code>network</code> ou <code>passive</code>.</dd>
+</dl>
+
+<hr>
+
+<h2>Notificações: <code>termux-notification</code></h2>
+<p>Quer que o celular te avise de algo mesmo com o Termux fechado? O <code>termux-notification</code> cria uma notificação de verdade na barra de notificações do Android — ideal para o fim de um backup longo, um job agendado ou um servidor que caiu:</p>
+<pre class="term">$ termux-notification --title Oi
+Notificação enviada (simulada): Oi ✓
+$ termux-notification --title "Backup pronto" --content "backup concluido as 03:00"
+Notificação enviada (simulada): Backup pronto --content backup concluido as 03:00 ✓</pre>
+<p>Você controla título (<code>--title</code>), conteúdo (<code>--content</code>), prioridade, som e até ações. No Android 13+, o app Termux:API precisa da permissão de <strong>notificações</strong> — sem ela, o comando roda mas nada aparece na barra.</p>
+
+<hr>
+
+<h2>Mapa dos comandos <code>termux-*</code></h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando</th><th>O que faz</th><th>Permissão no Android</th></tr>
+<tr><td><code>termux-battery-status</code></td><td>Bateria em JSON (level, status, temperatura)</td><td>nenhuma</td></tr>
+<tr><td><code>termux-sms-list</code></td><td>Lista SMS recebidos em JSON</td><td>SMS</td></tr>
+<tr><td><code>termux-contact-list</code></td><td>Lista contatos (nome + número)</td><td>Contatos</td></tr>
+<tr><td><code>termux-location</code></td><td>GPS/localização em JSON</td><td>Localização</td></tr>
+<tr><td><code>termux-notification</code></td><td>Cria notificação na barra do Android</td><td>Notificações</td></tr>
+<tr><td><code>termux-toast</code></td><td>Pop-up rápido na tela (veremos já já)</td><td>nenhuma</td></tr>
+<tr><td><a href="termux-camera.html"><code>termux-camera-photo</code></a></td><td>Tira foto pela câmera e salva num arquivo</td><td>Câmera</td></tr>
+<tr><td><a href="termux-torch.html"><code>termux-torch</code></a></td><td>Liga/desliga a lanterna</td><td>Lanterna (flash)</td></tr>
+<tr><td><code>termux-vibrate</code></td><td>Faz o celular vibrar</td><td>Vibração</td></tr>
+<tr><td><code>termux-wake-lock</code></td><td>Impede a tela de apagar (próximas aulas)</td><td>nenhuma</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Hora de pratiquer no simulador</h2>
+<p>Nas duas caixas abaixo, a máquina <code>ana@android</code> já tem o <code>termux-api</code> instalado. Consulte a bateria e envie uma notificação para ver a Termux-API funcionando:</p>
+
+<div class="try" data-goal="&quot;level&quot;: 87" data-solucao="termux-battery-status">
+<p class="try-task"><strong>Missão:</strong> rode <code>termux-battery-status</code> e encontre o nível da bateria no JSON — a saída mostra <code>"level": 87</code> com o celular carregando (<code>"status": "Charging"</code>).</p>
+</div>
+
+<div class="try" data-goal="Notificação enviada" data-solucao="termux-notification --title Oi">
+<p class="try-task"><strong>Missão:</strong> envie uma notificação para o Android da Ana com <code>termux-notification --title Oi</code> — a confirmação <code>Notificação enviada</code> aparece na saída. Depois teste <code>termux-sms-list</code>, <code>termux-location</code> e <code>termux-contact-list</code>.</p>
+</div>
+
+<hr>
+
+<h2><code>termux-info</code>: a identidade do celular pelo terminal</h2>
+<p>Antes de automatizar qualquer coisa, vale saber <em>em que aparelho</em> o script está rodando — celular novo, Android atualizado, CPU diferente muda o comportamento. O <code>termux-info</code> resume o dispositivo num relatório:</p>
+<pre class="term">$ termux-info
+TERMUX_VERSION=0.118.0
+ANDROID_VERSION=14
+CPU: Snapdragon 8 Gen 2
+RAM total: 8 GB
+Storage: 128 GB
+Shell: /data/data/com.termux/files/usr/bin/bash
+Device: Pixel 7 Pro (rooted)</pre>
+<p>Repare que ele já entrega o essencial para um script: versão do Android (<code>ANDROID_VERSION=14</code>), CPU (<code>Snapdragon 8 Gen 2</code>), RAM (<code>8 GB</code>) e o modelo (<code>Pixel 7 Pro</code>). Dá para usar num script de diagnóstico que você manda para um amigo quando ele diz "no meu celular não funciona": rode <code>termux-info</code> e <code>termux-battery-status</code> e mande as duas saídas.</p>
+
+<hr>
+
+<h2>JSON na prática: lendo a bateria com python</h2>
+<p>Como a saída dos comandos <code>termux-*</code> é JSON, o passo natural é processar com uma linguagem. Com o <code>python</code> instalado (<code>pkg install python</code> → <code>Python 3.11.9</code>), um script de 3 linhas decide se roda o backup ou espera o carregador:</p>
+<pre class="file" data-file="checa-bateria.py">#!/data/data/com.termux/files/usr/bin/python3
+import json, subprocess
+
+bateria = json.loads(subprocess.check_output(["termux-battery-status"]))
+print("nivel:", bateria["level"], "| status:", bateria["status"])
+
+if bateria["status"] == "Charging" and bateria["level"] > 80:
+    subprocess.run(["~/backup.sh"])   # só faz backup pesado com bateria cheia na tomada
+else:
+    print("deixa o backup pra depois...")</pre>
+<p>Esse é o poder da Termux-API: o terminal deixa de ser só um lugar para <em>ver</em> dados do celular e passa a <strong>agir sobre eles</strong>. A mesma ideia vale para SMS (<code>termux-sms-list</code> + procurar o código de verificação), localização (<code>termux-location</code> + comparar com as coordenadas de casa) e contatos.</p>
+
+<div class="warn"><strong>Versão certa do app Termux:API:</strong> a Play Store tem um app "Termux:API" antigo e quebrado — instale o Termux e o Termux:API pela <strong>F-Droid</strong> (mesma fonte recomendada na aula de <a href="instalar.html">instalação</a>). Se um comando diz <code>not found</code> mesmo com o pacote instalado, a causa quase sempre é o app errado ou a permissão desligada.</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>A Termux-API tem duas partes: o pacote <code>termux-api</code> (comandos no Termux) e o app <strong>Termux:API</strong> (acesso ao Android) — instale os dois pela F-Droid.</li>
+  <li>Cada comando precisa da <strong>permissão correspondente</strong> nas configurações do app Termux:API; erro de permissão é o erro mais comum.</li>
+  <li><code>termux-battery-status</code> devolve JSON com <code>"level": 87</code> e <code>"status": "Charging"</code> — ideal para condicionar scripts.</li>
+  <li><code>termux-sms-list</code>, <code>termux-contact-list</code> e <code>termux-location</code> devolvem arrays/coordenadas em JSON, prontos para processar com python.</li>
+  <li><code>termux-notification --title ...</code> cria notificações de verdade na barra do Android.</li>
+  <li>Próximo passo: usar a <strong>câmera</strong> pelo terminal.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="termux-camera.html">termux-camera-photo: tirar foto pelo terminal</a> — e salvar direto na pasta DCIM da galeria do celular.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

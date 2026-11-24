@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cola rápida dos comandos termux-* (Termux-API) — bateria, SMS, GPS, câmera, lanterna | Guia Termux</title>
+<meta name="description" content="Cola de consulta rápida de todos os comandos termux-* da Termux-API no Termux: termux-setup-storage, termux-battery-status, termux-toast, termux-notification, termux-sms-list, termux-location, termux-contact-list, termux-camera-photo, termux-torch, termux-vibrate, termux-wake-lock, termux-job-scheduler e termux-info — tabela de referência, exemplos com a saída real no celular da Ana (Pixel 7 Pro, Android 14) e missões no terminal simulado.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Cola dos comandos <span class="hl">termux-*</span> (Termux-API)</h1>
+
+<p class="intro">Além de um terminal Linux, o Termux consegue <strong>controlar o próprio celular</strong>: ler a bateria, mandar SMS, pegar o GPS, tirar foto, acender a lanterna, vibrar e mandar notificações — tudo por comando. Essa mágica mora no pacote <code>termux-api</code> e cada comando começa com <code>termux-</code>. Nesta página está a <strong>cola completa</strong>, com a saída real de cada um na máquina da Ana (<code>ana@android</code>, Pixel 7 Pro com Android 14).</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Instalar e habilitar a Termux-API: <code>pkg install termux-api</code> + o app <strong>Termux:API</strong> da F-Droid com as permissões liberadas.</li>
+  <li>Tabela de consulta rápida de <strong>todos</strong> os comandos <code>termux-*</code> e o que cada um devolve.</li>
+  <li>Os grupos: sistema (<code>termux-info</code>, bateria, storage), avisos (<code>termux-toast</code>, <code>termux-notification</code>, vibração), sensores e dados (<code>termux-sms-list</code>, <code>termux-location</code>, <code>termux-contact-list</code>), hardware (<code>termux-camera-photo</code>, <code>termux-torch</code>), energia (<code>termux-wake-lock</code>) e tarefas (<code>termux-job-scheduler</code>).</li>
+  <li>As pegadinhas: permissão negada no Android, JSON na saída e wake lock que drena bateria.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>Antes de tudo: instalar a Termux-API</h2>
+<p>Os comandos <code>termux-*</code> não vêm prontos: eles são um pacote à parte. Na máquina da Ana o fluxo foi:</p>
+<pre class="term" data-host="android">$ pkg install termux-api
+The following NEW packages will be installed:
+  termux-api
+0 upgraded, 1 newly installed, 0 to remove.
+Setting up termux-api (0.50.1) ...
+termux-api instalado ✓
+$ termux-battery-status
+{
+  "level": 87,
+  "status": "Charging",
+  "temperature": 31.5,
+  "plugged": "AC",
+  "health": "Good"
+}</pre>
+<p>Dois detalhes importantes: primeiro, instale também o app <strong>Termux:API</strong> (na F-Droid, não na Play Store) — é ele que recebe as permissões de SMS, localização, câmera etc. no Android; segundo, rode cada comando pelo menos uma vez e <strong>aceite a caixa de permissão</strong> que aparece no celular. Sem isso, comandos como <code>termux-sms-list</code> falham com permissão negada.</p>
+
+<div class="warn"><strong>Se o comando <code>termux-*</code> responder <code>command not found</code>:</strong> você esqueceu o <code>pkg install termux-api</code> (ou reiniciou o app sem recarregar — rode <code>termux-reload-settings</code> no Termux real). Se responder <em>permission denied</em> vindos do Android, abra o app <strong>Termux:API</strong> e conceda a permissão pedida.</div>
+
+<hr>
+
+<h2>Tabela de consulta rápida — todos os termux-*</h2>
+<p>Essa é a tabela para guardar nos favoritos: comando, para que serve e exemplo de saída na máquina da Ana.</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando</th><th>Para que serve</th><th>Exemplo</th><th>Saída típica</th></tr>
+<tr><td><code>termux-setup-storage</code></td><td>Cria <code>~/storage</code> com links para fotos, downloads etc. do celular</td><td><code>termux-setup-storage</code></td><td><code>Storage configurado ✓</code></td></tr>
+<tr><td><code>termux-info</code></td><td>Mostra versão do Termux, Android, CPU, RAM e dispositivo</td><td><code>termux-info</code></td><td><code>Device: Pixel 7 Pro (rooted)</code>, <code>Snapdragon 8 Gen 2</code></td></tr>
+<tr><td><code>termux-battery-status</code></td><td>Nível e estado da bateria em <strong>JSON</strong></td><td><code>termux-battery-status</code></td><td><code>"level": 87</code>, <code>"status": "Charging"</code></td></tr>
+<tr><td><code>termux-toast</code></td><td>Mostra um aviso rápido na tela (toast)</td><td><code>termux-toast ola</code></td><td><code>Toast enviado: ola ✓</code></td></tr>
+<tr><td><code>termux-notification</code></td><td>Manda uma notificação para a barra de status</td><td><code>termux-notification --title Oi</code></td><td><code>Notificação enviada … ✓</code></td></tr>
+<tr><td><code>termux-sms-list</code></td><td>Lista os SMS do celular em JSON</td><td><code>termux-sms-list</code></td><td><code>"number":"+5511999887766"</code></td></tr>
+<tr><td><code>termux-location</code></td><td>GPS atual em JSON (latitude, longitude, altitude)</td><td><code>termux-location</code></td><td><code>"latitude": -23.5505</code></td></tr>
+<tr><td><code>termux-contact-list</code></td><td>Lista os contatos do celular em JSON</td><td><code>termux-contact-list</code></td><td><code>"name":"Mãe"</code></td></tr>
+<tr><td><code>termux-camera-photo</code></td><td>Tira uma foto com a câmera e salva num arquivo</td><td><code>termux-camera-photo ~/foto.jpg</code></td><td><code>Foto salva em … ✓ (312 KB)</code></td></tr>
+<tr><td><code>termux-torch</code></td><td>Acende/apaga a lanterna (flash) da câmera</td><td><code>termux-torch on</code> / <code>off</code></td><td><code>Lanterna ligada ✓</code> / <code>desligada ✓</code></td></tr>
+<tr><td><code>termux-vibrate</code></td><td>Faz o celular vibrar</td><td><code>termux-vibrate</code></td><td><code>Celular vibrou ✓</code></td></tr>
+<tr><td><code>termux-wake-lock</code></td><td>Segura a tela ligada (não apaga)</td><td><code>termux-wake-lock</code></td><td><code>Wake lock adquirido ✓</code></td></tr>
+<tr><td><code>termux-wake-unlock</code></td><td>Libera o wake lock</td><td><code>termux-wake-unlock</code></td><td><code>Wake lock liberado.</code></td></tr>
+<tr><td><code>termux-job-scheduler</code></td><td>Agenda um script para rodar sozinho de tempos em tempos</td><td><code>termux-job-scheduler --script ~/backup.sh --period 300000</code></td><td><code>Job agendado (id 1) … ✓</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Sistema: termux-info e termux-battery-status</h2>
+<p>Comece sempre conhecendo a máquina: <code>termux-info</code> resume o ambiente e <code>termux-battery-status</code> devolve um <strong>JSON</strong> — dá para filtrar com ferramentas de texto (no Termux real, daria <code>termux-battery-status | grep level</code>):</p>
+<pre class="term" data-host="android">$ termux-info
+TERMUX_VERSION=0.118.0
+ANDROID_VERSION=14
+CPU: Snapdragon 8 Gen 2
+RAM total: 8 GB
+Storage: 128 GB
+Shell: /data/data/com.termux/files/usr/bin/bash
+Device: Pixel 7 Pro (rooted)
+$ termux-battery-status
+{
+  "level": 87,
+  "status": "Charging",
+  "temperature": 31.5,
+  "plugged": "AC",
+  "health": "Good"
+}</pre>
+<p>Na máquina da Ana o celular está <strong>carregando na tomada (AC)</strong> com <strong>87%</strong> de bateria e saúde boa — é esse JSON que um script de monitoring leria para mandar um alerta quando o nível cair.</p>
+
+<hr>
+
+<h2>Avisos na tela: toast, notificação e vibração</h2>
+<p>Úteis para scripts avisarem sem você estar olhando: o <strong>toast</strong> aparece por 2 segundos no pé da tela, a <strong>notificação</strong> cai na barra de status e a <strong>vibração</strong> chama atenção no bolso:</p>
+<pre class="term" data-host="android">$ termux-toast backup terminou
+Toast enviado: backup terminou ✓
+$ termux-notification --title Backup
+Notificação enviada (simulada): Backup ✓
+$ termux-vibrate
+Celular vibrou ✓</pre>
+<dl class="anatomy">
+  <dt>termux-notification</dt><dd>o comando que manda a notificação</dd>
+  <dt>--title</dt><dd>flag que define o título exibido na barra de status</dd>
+  <dt>Backup</dt><dd>o texto do título (pode ter espaços se for passado como um argumento só)</dd>
+</dl>
+
+<hr>
+
+<h2>Dados do celular: SMS, GPS e contatos</h2>
+<p>Com permissão concedida no app Termux:API, o terminal lê SMS, GPS e agenda — sempre em <strong>JSON</strong>, pronto para processar:</p>
+<pre class="term" data-host="android">$ termux-sms-list
+[{"number":"+5511999887766","body":"Seu código é 123456"},{"number":"+5511912345678","body":"Entrega confirmada"}]
+$ termux-location
+{
+  "latitude": -23.5505,
+  "longitude": -46.6333,
+  "altitude": 760.0,
+  "provider": "gps"
+}
+$ termux-contact-list
+[{"name":"Mãe","number":"+5511999887766"},{"name":"Max","number":"+5511912345678"}]</pre>
+<p>A Ana está em São Paulo (<code>-23.5505, -46.6333</code>, altitude de 760 m, provedor GPS). Dá para cruzar os dados: mandar um toast para o número que aparece no <code>termux-contact-list</code>, ou salvar a localização num log a cada hora.</p>
+
+<div class="warn"><strong>Permissão do Android é por comando:</strong> se <code>termux-sms-list</code> ou <code>termux-location</code> falhar, abra o app <strong>Termux:API</strong> → permissões e libere SMS/Localização. O Termux em si não pode burlar isso — é o Android quem tranca.</div>
+
+<hr>
+
+<h2>Hardware: câmera e lanterna</h2>
+<p>A lanterna é um clássico de script de "modo ladrão" (acende quando o celular sai do bolso) e a câmera vira um sistema de vigilancia DIY:</p>
+<pre class="term" data-host="android">$ termux-camera-photo ~/foto.jpg
+Foto salva em /data/data/com.termux/files/home/foto.jpg ✓ (312 KB)
+$ termux-torch on
+Lanterna ligada ✓
+$ termux-torch off
+Lanterna desligada ✓</pre>
+<p>O caminho longo <code>/data/data/com.termux/files/home/foto.jpg</code> é a casa da Ana dentro do app Termux — é o mesmo que <code>~/foto.jpg</code>, só que escrito por extenso. Com o <code>termux-setup-storage</code> feito, dá para salvar direto na galeria: <code>termux-camera-photo ~/storage/dcim/foto.jpg</code>.</p>
+
+<hr>
+
+<h2>Energia e tarefas: wake lock e job-scheduler</h2>
+<p>Dois comandos que resolvem problemas do dia a dia — e um deles pode virar vilão:</p>
+<pre class="term" data-host="android">$ termux-wake-lock
+Wake lock adquirido ✓ (a tela não apaga enquanto segurar)
+$ termux-job-scheduler --script ~/backup.sh --period 300000
+Job agendado (id 1): ~/backup.sh a cada 300000 ms ✓
+$ crontab -l
+# crontab do Termux (ana@android)
+*/30 * * * * ~/backup.sh &gt;&gt; ~/backup.log 2&gt;&amp;1</pre>
+<div class="warn"><strong>Wake lock esquecido drena a bateria:</strong> segurar a tela ligada consome energia o tempo todo. Sempre combine com <code>termux-wake-unlock</code> no fim do script — a Ana já tomó um susto com o celular descarregando em 2h por causa disso. Veja a página <a href="wake-lock.html">Wake lock e termux-services</a>.</div>
+<p>O <code>termux-job-scheduler</code> roda um script a cada N milissegundos <strong>sem precisar de cron</strong> (o <code>crontab -l</code> acima mostra a alternativa clássica: a cada 30 minutos o <code>~/backup.sh</code> roda e grava no <code>backup.log</code>).</p>
+
+<hr>
+
+<h2>Storage: o primeiro termux-* de todos</h2>
+<p>O <code>termux-setup-storage</code> é o comando que <strong>abre o celular para o Termux</strong>: ele cria a pasta <code>~/storage</code> com atalhos para as pastas reais do Android e pede a permissão na hora:</p>
+<pre class="term" data-host="android">$ termux-setup-storage
+Setting up storage access...
+Links criados em ~/storage:
+  dcim -&gt; /storage/emulated/0/DCIM
+  downloads -&gt; /storage/emulated/0/Download
+  pictures -&gt; /storage/emulated/0/Pictures
+  music -&gt; /storage/emulated/0/Music
+  movies -&gt; /storage/emulated/0/Movies
+  shared -&gt; /storage/emulated/0
+Storage configurado ✓ (aceite a permissão no Android)
+$ ls ~/storage
+dcim  downloads  movies  music  pictures  shared</pre>
+<p>Sem esse comando, <code>ls ~/storage</code> responde <code>Permission denied</code> — erro que está na <a href="ref-erros.html">cola de erros</a>.</p>
+
+<hr>
+
+<h2>Pratique no terminal simulado</h2>
+
+<div class="try" data-goal='"level": 87' data-solucao="termux-battery-status">
+<p class="try-task"><strong>Missão 1 — bateria:</strong> rode <code>termux-battery-status</code> e encontre o nível da bateria da Ana no JSON (<code>"level": 87</code>).</p>
+</div>
+
+<div class="try" data-goal="Foto salva em" data-solucao="termux-camera-photo ~/foto.jpg">
+<p class="try-task"><strong>Missão 2 — câmera:</strong> tire uma foto pelo terminal com <code>termux-camera-photo ~/foto.jpg</code> e veja o caminho onde ela foi salva. Depois experimente <code>termux-torch on</code>, <code>termux-toast ola</code> e <code>termux-sms-list</code>.</p>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Comandos <code>termux-*</code> vêm do pacote <code>termux-api</code> + app <strong>Termux:API</strong> com permissões liberadas.</li>
+  <li>Sistema: <code>termux-info</code>, <code>termux-battery-status</code> (JSON), <code>termux-setup-storage</code> (<code>~/storage</code>).</li>
+  <li>Avisos: <code>termux-toast</code>, <code>termux-notification --title …</code>, <code>termux-vibrate</code>.</li>
+  <li>Dados: <code>termux-sms-list</code>, <code>termux-location</code>, <code>termux-contact-list</code> — tudo em JSON.</li>
+  <li>Hardware: <code>termux-camera-photo ARQUIVO</code>, <code>termux-torch on|off</code>.</li>
+  <li>Energia/tarefas: <code>termux-wake-lock</code>/<code>termux-wake-unlock</code> (cuidado com a bateria!) e <code>termux-job-scheduler --script … --period …</code>.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="ref-pkg.html">Cola de pkg/apt</a> — update, install, search, list-installed, show e uninstall, os comandos que instalam (e removem) tudo no Termux.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

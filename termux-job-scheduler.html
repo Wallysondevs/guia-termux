@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>termux-job-scheduler e crontab: automação e agendamento no Termux | Guia Termux</title>
+<meta name="description" content="Automação no Termux: rode scripts sozinho com termux-job-scheduler --script ~/backup.sh --period 300000 (período em milissegundos) e gerencie a agenda clássica com crontab -l / crontab -e — sintaxe cron de 5 campos, o backup de 30 em 30 minutos da máquina ana@android, tabela de períodos comuns e missões no terminal simulado. Próxima aula: proot-distro.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">termux-job-scheduler e crontab</span>: o celular trabalha sozinho</h1>
+<p class="intro">Imagine o backup das suas fotos rodando sozinho a cada 30 minutos, sem você abrir o Termux. No Android não existe um "cron do sistema" como no Linux de PC, mas o Termux oferece duas ferramentas para isso: o <strong>crontab</strong> (a agenda clássica do Unix, que já está configurada na máquina da Ana) e o <strong>termux-job-scheduler</strong> (a API do Android para agendar scripts). Nesta aula você vê os dois funcionando em <code>ana@android</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que já está agendado na máquina da Ana: <code>crontab -l</code> mostra o backup a cada 30 minutos;</li>
+  <li>A sintaxe cron de 5 campos: <em>minuto hora dia-do-mês mês dia-da-semana</em>;</li>
+  <li><code>termux-job-scheduler --script ~/backup.sh --period 300000</code>: agendar um script com período em <strong>milissegundos</strong>;</li>
+  <li>Ler o resultado do backup: <code>cat backup.log</code> e <code>cat backup.sh</code>;</li>
+  <li>O limite importante: jobs só rodam com uma sessão do Termux viva — e é aí que entra o <a href="wake-lock.html">wake lock</a>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>O cenário da Ana: backup da galeria</h2>
+<p>A Ana guarda as fotos do celular na pasta DCIM compartilhada (lembra do <a href="storage.html">termux-setup-storage</a>?) e criou um script que empacota essa pasta num <code>.tar.gz</code>. Olhe o home dela e o conteúdo do script e do log:</p>
+<pre class="term">$ ls
+backup.sh  storage  .bashrc  .termux  projetos
+$ cat backup.sh
+#!/data/data/com.termux/files/usr/bin/bash
+echo "backup iniciado"
+tar -czf ~/backup.tar.gz ~/storage/shared/DCIM
+echo "backup concluido"
+$ cat backup.log
+backup iniciado
+backup concluido
+backup iniciado
+backup concluido</pre>
+<p>O <code>backup.log</code> já mostra duas execuções — ou seja, <strong>algo já está rodando esse script sozinho</strong>. É o crontab. Vamos ver a agenda:</p>
+<pre class="term">$ crontab -l
+# crontab do Termux (ana@android)
+*/30 * * * * ~/backup.sh >> ~/backup.log 2>&1</pre>
+<p>Essa linha diz: "a cada 30 minutos, rode <code>~/backup.sh</code> e jogue a saída (e os erros, por causa do <code>2&gt;&amp;1</code>) no fim do <code>~/backup.log</code>". É exatamente o que aparece no log: "backup iniciado / backup concluido" repetido.</p>
+
+<hr>
+
+<h2>A sintaxe do cron (5 campos)</h2>
+<p>Toda linha do crontab (fora os comentários com <code>#</code>) tem <strong>cinco campos de tempo</strong> seguidos do comando:</p>
+<pre class="term">*/30 * * * * ~/backup.sh >> ~/backup.log 2>&1
+│    │ │ │ └─ dia da semana (0-6, 0 = domingo)
+│    │ │ └─── mês (1-12)
+│    │ └───── dia do mês (1-31)
+│    └─────── hora (0-23)
+└──────────── minuto (0-59)</pre>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Campo</th><th>Valores</th><th>Significado</th></tr>
+<tr><td>1º — minuto</td><td>0–59</td><td><code>*</code> = todo minuto; <code>*/30</code> = de 30 em 30 minutos</td></tr>
+<tr><td>2º — hora</td><td>0–23</td><td><code>3</code> = 3h da manhã</td></tr>
+<tr><td>3º — dia do mês</td><td>1–31</td><td><code>1</code> = todo dia 1º</td></tr>
+<tr><td>4º — mês</td><td>1–12</td><td><code>12</code> = dezembro</td></tr>
+<tr><td>5º — dia da semana</td><td>0–6 (0 = domingo)</td><td><code>1</code> = segunda-feira</td></tr>
+</table>
+</div>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Expressão</th><th>Quando roda</th><th>Uso típico no Termux</th></tr>
+<tr><td><code>*/30 * * * *</code></td><td>a cada 30 minutos</td><td>backup incremental da DCIM (o caso da Ana)</td></tr>
+<tr><td><code>0 3 * * *</code></td><td>todo dia às 3h</td><td>backup completo noturno</td></tr>
+<tr><td><code>0 8 * * 1</code></td><td>segunda-feira às 8h</td><td>relatório semanal</td></tr>
+<tr><td><code>0 0 1 * *</code></td><td>dia 1º de cada mês à meia-noite</td><td>limpeza de logs mensal</td></tr>
+</table>
+</div>
+
+<div class="warn"><strong>Erros clássicos de cron:</strong> (1) escrever 4 campos (<code>*/30 * * *</code>) — o comando roda no horário errado; (2) confundir a ordem (hora vem <em>depois</em> do minuto); (3) esquecer que o cron usa o <strong>horário do sistema</strong> do celular — se o Android estiver em outro fuso, "3h" não é 3h pra você. Para editar a agenda num celular real, use <code>crontab -e</code> (abre o editor padrão, ex.: vim) — no simulador, <code>crontab -e</code> só mostra uma mensagem de brincadeira.</div>
+
+<hr>
+
+<h2><code>termux-job-scheduler</code>: agendar pelo Termux-API</h2>
+<p>Além do crontab, o Termux tem uma API própria para agendar scripts usando o <em>JobScheduler</em> do Android — o <code>termux-job-scheduler</code>. A sintaxe é diferente e o detalhe que mais confunde é a unidade do período:</p>
+<pre class="term">$ termux-job-scheduler --script ~/backup.sh --period 300000
+Job agendado (id 1): ~/backup.sh a cada 300000 ms ✓</pre>
+<dl class="anatomy">
+  <dt>--script ~/backup.sh</dt><dd>o caminho do script que será executado — precisa ser executável e com shebang (<code>#!/.../bash</code>).</dd>
+  <dt>--period 300000</dt><dd>o intervalo em <strong>milissegundos</strong>: 300000 ms = 5 minutos. Esse é o erro nº 1: não é segundos!</dd>
+  <dt>Job agendado (id 1)</dt><dd>o Android devolve um id para o job — dá para cancelar depois com <code>--cancel id</code>.</dd>
+</dl>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Período desejado</th><th>Valor para <code>--period</code> (ms)</th><th>Comando</th></tr>
+<tr><td>5 minutos</td><td><code>300000</code></td><td><code>termux-job-scheduler --script ~/backup.sh --period 300000</code></td></tr>
+<tr><td>30 minutos</td><td><code>1800000</code></td><td><code>... --period 1800000</code></td></tr>
+<tr><td>1 hora</td><td><code>3600000</code></td><td><code>... --period 3600000</code></td></tr>
+<tr><td>1 dia</td><td><code>86400000</code></td><td><code>... --period 86400000</code></td></tr>
+</table>
+</div>
+
+<div class="warn"><strong>Limite real e importante:</strong> tanto o crontab quanto o termux-job-scheduler só rodam enquanto existe uma <strong>sessão do Termux viva</strong> (ou com os serviços do Termux ativos). Se o Android matar o app, o job não roda. Para backups/servidores de madrugada isso muda tudo — é por isso que a próxima aulas depois desta trilha é o <a href="wake-lock.html">wake lock</a> (<code>termux-wake-lock</code>), que segura a CPU e a tela ligadas, e o <code>sshd</code> (aula de <a href="sshd.html">SSH no celular</a>) para manter uma sessão sempre aberta.</div>
+
+<hr>
+
+<h2>Juntando as peças: aviso + log + agendamento</h2>
+<p>Um script bem comportado para rodar sozinho precisa de duas coisas: <strong>gravar a própria saída num log</strong> (é o <code>&gt;&gt; ~/backup.log 2&gt;&amp;1</code> do crontab) e <strong>deixar uma pista visível</strong> de que rodou — o toast da <a href="termux-torch.html">aula anterior</a> cai muito bem aqui:</p>
+<pre class="file" data-file="backup.sh">#!/data/data/com.termux/files/usr/bin/bash
+echo "backup iniciado"
+tar -czf ~/backup.tar.gz ~/storage/shared/DCIM
+termux-toast "backup concluido ✓"
+echo "backup concluido"</pre>
+<p>Com a linha do <code>termux-toast</code>, cada execução do job deixa um pop-up na tela do celular — útil quando o backup roda enquanto você usa o celular. E no log, <code>cat backup.log</code> continua acumulando "backup iniciado / backup concluido", como vimos acima.</p>
+
+<hr>
+
+<h2>Missões no simulador</h2>
+<p>Na máquina <code>ana@android</code>, cheque a agenda existente e crie um job novo:</p>
+
+<div class="try" data-goal="Job agendado" data-solucao="termux-job-scheduler --script ~/backup.sh --period 300000">
+<p class="try-task"><strong>Missão:</strong> agende o backup da Ana a cada 5 minutos com <code>termux-job-scheduler --script ~/backup.sh --period 300000</code> — a saída confirma <code>Job agendado (id 1): ~/backup.sh a cada 300000 ms ✓</code>.</p>
+</div>
+
+<div class="try" data-goal="backup.sh >> ~/backup.log" data-solucao="crontab -l">
+<p class="try-task"><strong>Missão:</strong> veja a agenda existente com <code>crontab -l</code> — a linha <code>*/30 * * * * ~/backup.sh >> ~/backup.log 2>&1</code> mostra o backup a cada 30 minutos. Depois rode <code>cat backup.log</code> para ver as execuções.</p>
+</div>
+
+<hr>
+
+<h2>Editando a agenda: <code>crontab -e</code> e o arquivo do crontab</h2>
+<p>Para mudar a agenda num celular real, o comando é <code>crontab -e</code>: ele abre o crontab no editor padrão (vim ou nano, conforme a aula de <a href="editores.html">editores</a>). Cada linha segue a regra dos 5 campos + comando. Um arquivo de crontab típico da Ana, com o backup de 30 em 30 minutos e uma limpeza semanal:</p>
+<pre class="file" data-file="crontab"># crontab do Termux (ana@android)
+# backup da galeria a cada 30 minutos
+*/30 * * * * ~/backup.sh >> ~/backup.log 2>&1
+# todo domingo às 23h, limpa logs com mais de 7 dias
+0 23 * * 0 find ~/projetos -name "*.log" -mtime +7 -delete
+# às 3h todo dia, foto da câmera frontal + backup completo
+0 3 * * * termux-camera-photo --camera 1 ~/storage/shared/DCIM/auto-$(date +\%H\%M).jpg</pre>
+<p>O detalhe chato de cron dentro de scripts: o <code>%</code> precisa ser escapado (<code>\%</code>) porque no crontab o <code>%</code> vira quebra de linha. No exemplo acima, a forma correta dentro do crontab é <code>date +\%H\%M</code>.</p>
+
+<div class="warn"><strong>Erros reais de agendamento no Termux:</strong> (1) script sem permissão de execução — rode <code>chmod +x ~/backup.sh</code> antes de agendar; (2) <code>--period</code> em milissegundos, não segundos (300000 = 5 min); (3) caminho relativo no cron dá errado — use caminho absoluto (<code>~/backup.sh</code> vale porque o cron do Termux roda na home); (4) o job não rodou de madrugada porque o Termux estava morto — resolva com <a href="wake-lock.html">wake lock</a> ou mantendo uma sessão SSH aberta.</div>
+
+<hr>
+
+<h2>crontab ou termux-job-scheduler: qual usar?</h2>
+<p>As duas ferramentas se sobrepõem, mas têm jeitos diferentes. Na prática, muita gente usa as duas:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>crontab</th><th>termux-job-scheduler</th></tr>
+<tr><td>Sintaxe</td><td>5 campos cron + comando (ex.: <code>*/30 * * * *</code>)</td><td>parâmetros: <code>--script</code>, <code>--period</code> (ms)</td></tr>
+<tr><td>Onde vive</td><td>arquivo do crontab (<code>crontab -l</code> / <code>-e</code>)</td><td>agenda do JobScheduler do Android (tem id: <code>Job agendado (id 1)</code>)</td></tr>
+<tr><td>Granularidade</td><td>1 minuto no mínimo</td><td>milissegundos (dá para 5 min, 30 s...)</td></tr>
+<tr><td>Persistência</td><td>enquanto o serviço de cron do Termux estiver vivo</td><td>o Android pode segurar o job mesmo entre reinícios do app (melhor para "uma vez por dia")</td></tr>
+<tr><td>Ver o que rodou</td><td>você mesmo manda pro log (<code>&gt;&gt; ~/backup.log 2&gt;&amp;1</code>)</td><td>saída vai para o log do sistema (logcat) ou para o log que o script gravar</td></tr>
+</table>
+</div>
+<p>Regra prática: use o <strong>crontab</strong> para rotinas recorrentes com cara de servidor (backup a cada 30 min, limpeza semanal) e o <strong>termux-job-scheduler</strong> para tarefas pontuais ou com período "estranho" que o Android gerencia melhor. E para ambos: teste primeiro rodando o script na mão (<code>~/backup.sh</code>) e conferindo <code>cat backup.log</code> antes de confiar na agenda.</p>
+
+<hr>
+
+<h2>Convertendo períodos para milissegundos</h2>
+<p>Como o <code>--period</code> é em milissegundos, a conversão mental é: <strong>segundos × 1000</strong>.. Exemplos rodando na máquina da Ana:</p>
+<pre class="term">$ termux-job-scheduler --script ~/backup.sh --period 300000
+Job agendado (id 1): ~/backup.sh a cada 300000 ms ✓
+$ termux-job-scheduler --script ~/backup.sh --period 1800000
+Job agendado (id 2): ~/backup.sh a cada 1800000 ms ✓
+$ termux-job-scheduler --script ~/backup.sh --period 86400000
+Job agendado (id 3): ~/backup.sh a cada 86400000 ms ✓</pre>
+<p>Ou seja: <code>300000</code> = 5 min, <code>1800000</code> = 30 min, <code>86400000</code> = 24 h. Cada chamada devolve um <strong>id</strong> novo (1, 2, 3...) — guarde o id se quiser cancelar depois. Se você passar um período muito curto (ex.: 1000 ms = 1 segundo), o Android pode recusar ou rodar o job o tempo todo — o sistema tem um período mínimo efetivo.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>crontab -l</code> lista a agenda; no simulador já existe <code>*/30 * * * * ~/backup.sh >> ~/backup.log 2>&1</code> (backup a cada 30 min).</li>
+  <li>Sintaxe cron: <strong>minuto hora dia-do-mês mês dia-da-semana</strong> + comando; <code>*/30</code> = de 30 em 30 minutos.</li>
+  <li><code>termux-job-scheduler --script ~/backup.sh --period 300000</code> agenda via API do Android e confirma <code>Job agendado (id 1) ... ✓</code>.</li>
+  <li><code>--period</code> é em <strong>milissegundos</strong>: 300000 = 5 min, 1800000 = 30 min, 86400000 = 1 dia.</li>
+  <li>Saída para log com <code>&gt;&gt; arquivo 2&gt;&amp;1</code>; aviso na tela com <code>termux-toast</code>.</li>
+  <li>Jobs só rodam com o Termux vivo — para rodar de madrugada, estude <a href="wake-lock.html">wake lock</a>.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="proot-distro.html">proot-distro: Ubuntu/Debian dentro do Termux</a> — rodar um Linux completo (com apt próprio) dentro do Android, sem precisar de root.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

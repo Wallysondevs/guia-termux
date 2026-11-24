@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>O que é o Termux e por que usar — terminal Linux real no Android | Guia Termux</title>
+<meta name="description" content="O que é o Termux: um terminal Linux de verdade dentro do Android — bash real, diretório privado /data/data/com.termux, gerenciador de pacotes pkg/apt próprio. Por que usar no celular: servidor, desenvolvimento e automação no bolso. Conheça a máquina ana@android (Pixel 7 Pro, Android 14, rootado via adb) usada em todo o guia e experimente o terminal simulado no navegador com adb devices e termux-battery-status.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>O que é o <span class="hl">Termux</span> — e por que usar no celular</h1>
+
+<p class="intro">O seu celular Android já roda Linux por baixo — o kernel é Linux. O que faltava era uma porta para ele: um <strong>terminal de verdade</strong>. É isso que o <strong>Termux</strong> instala: um app que cria um ambiente Linux completo num diretório privado (<code>/data/data/com.termux</code>), com shell <strong>bash</strong>, hundreds de programas instaláveis com <code>pkg</code> e acesso aos sensores do aparelho via <strong>Termux-API</strong>. Neste guia você vai usar tudo isso na máquina fictícia <code>ana@android</code> — um Pixel 7 Pro com Android 14 — direto no navegador.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é o Termux de verdade: bash real, <code>/data/data/com.termux</code>, repositórios e pacotes próprios (sem root!).</li>
+  <li>Os <strong>casos de uso</strong> que fazem sentido no celular: servidor, desenvolvimento, automação, labs.</li>
+  <li>A máquina deste guia: <code>ana@android</code> — Pixel 7 Pro, Android 14, Snapdragon 8 Gen 2, 8 GB de RAM e um dispositivo <strong>rootado</strong> visível via <code>adb</code>.</li>
+  <li>A anatomia do prompt <code>ana@android:~$</code> e os comandos básicos de orientação (<code>whoami</code>, <code>pwd</code>, <code>ls</code>).</li>
+  <li>A diferença entre o app <strong>Termux</strong>, o app <strong>Termux:API</strong> e o perigo da <strong>Play Store</strong> (próxima aula).</li>
+  <li>Seu primeiro contato com o terminal simulado deste guia: <code>adb devices</code> e <code>termux-battery-status</code>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>Um Linux de bolso, sem root</h2>
+<p>Quando você instala um app normal no Android, o sistema cria um usuário Linux só para ele e uma pasta privada. O Termux faz exatamente isso — mas em vez de uma interface gráfica, ele te entrega um <strong>terminal Linux completo</strong> nessa pasta:</p>
+
+<pre class="term" data-host="android">$ pwd
+/data/data/com.termux/files/home
+$ ls
+backup.sh  storage  .bashrc  .termux  projetos
+$ echo $SHELL
+/data/data/com.termux/files/usr/bin/bash</pre>
+
+<p>Repare nos detalhes: o <code>home</code> da Ana não é <code>/home/ana</code> como no PC — é <code>/data/data/com.termux/files/home</code>, dentro da área privada do app. Os programas ficam em <code>/data/data/com.termux/files/usr/bin</code> (o Termux usa o prefixo <code>usr</code> dentro do próprio diretório). E o shell é um <strong>bash de verdade</strong>, com histórico, autocompletar com <kbd>Tab</kbd>, atalhos de teclado e scripts.</p>
+
+<p>Isso significa que <strong>quase tudo que você aprende de Linux no PC funciona no Termux</strong>: pipes (<code>|</code>), redirecionamento (<code>&gt;</code>), <code>grep</code>, <code>tar</code>, <code>ssh</code>, <code>python</code>, <code>git</code>… A diferença é que aqui roda <strong>no celular, na bateria, na rede Wi-Fi da sua casa</strong>.</p>
+
+<div class="warn"><strong>Termux não precisa de root — e não ganha root sozinho.</strong> O app roda como um usuário normal do Android (no caso da Ana, <code>u0_a231</code>), então ele não mexe no sistema fora da própria pasta. Isso é bom para segurança, mas limita algumas coisas (portas abaixo de 1024, acesso a pastas de outros apps). Neste guia o celular da Ana é <strong>rootado</strong>, então mais tarde você vai conseguir enxergar o sistema por fora via <code>adb</code> — veja a aula <a href="adb.html">adb: contrôler o celular pelo PC (com root)</a>.</div>
+
+<hr>
+
+<h2>O que dá para fazer com um Linux no bolso?</h2>
+<p>A pergunta certa não é "dá para fazer?", é "para que eu vou usar?". Estes são os casos de uso mais comuns do Termux — todos cobertos neste guia:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Caso de uso</th><th>Exemplo concreto</th><th>Onde você aprende aqui</th></tr>
+<tr><td><strong>Servidor no celular</strong></td><td>Ligar o <code>sshd</code> e acessar o celular pelo PC; rodar um site com <code>python -m http.server</code></td><td><a href="sshd.html">sshd no Termux</a>, <a href="servidor-web.html">servidor web</a></td></tr>
+<tr><td><strong>Desenvolvimento</strong></td><td>Python, Node, SQLite, PostgreSQL, git e vim rodando no próprio aparelho</td><td><a href="pkg-apt.html">pkg/apt</a>, <a href="bancos-local.html">bancos local</a></td></tr>
+<tr><td><strong>Automação</strong></td><td>Backup das fotos toda madrugada com <code>crontab</code> + <code>termux-job-scheduler</code></td><td>Nível 2 · automação (termux-job-scheduler e crontab)</td></tr>
+<tr><td><strong>Controlar o aparelho pelo terminal</strong></td><td>Ler bateria, mandar notificação, tirar foto, ler SMS e GPS com <code>termux-*</code></td><td><a href="termux-api.html">Termux-API</a> (nível 2)</td></tr>
+<tr><td><strong>Falar com o sistema via adb</strong></td><td>Num celular rootado: <code>adb root</code>, <code>adb shell whoami</code> → <code>root</code></td><td><a href="adb.html">adb com root</a></td></tr>
+<tr><td><strong>Linux dentro do Linux</strong></td><td>Ubuntu/Debian inteiro dentro do Termux com <code>proot-distro</code></td><td>Nível 2 · proot-distro</td></tr>
+<tr><td><strong>Expor para a internet</strong></td><td>Seu site no celular acessível de fora com <code>ngrok</code></td><td>Nível 3 e projetos</td></tr>
+</table>
+</div>
+
+<p>O fio condutor deste guia: você vai transformar o celular da Ana num <strong>pequeno servidor de bolso</strong>, controlado pelo terminal — primeiro do próprio celular, depois pelo PC via SSH e adb.</p>
+
+<hr>
+
+<h2>A máquina deste guia: ana@android</h2>
+<p>Todas as aulas usam a mesma máquina fictícia: a <strong>Ana</strong>, que instalou o Termux num <strong>Pixel 7 Pro com Android 14</strong>. Rode <code>termux-info</code> nela:</p>
+
+<pre class="term" data-host="android">$ termux-info
+TERMUX_VERSION=0.118.0
+ANDROID_VERSION=14
+CPU: Snapdragon 8 Gen 2
+RAM total: 8 GB
+Storage: 128 GB
+Shell: /data/data/com.termux/files/usr/bin/bash
+Device: Pixel 7 Pro (rooted)</pre>
+
+<p>Dois detalhes importantes: o <strong>Android 14</strong> (aparece também no <code>uname -a</code>) e o fato de o aparelho ser <strong>rootado</strong> — ou seja, existe um segundo caminho para o sistema: o <code>adb</code> (Android Debug Bridge), que você vai usar na última aula deste nível para rodar comandos como <code>root</code>.</p>
+
+<h3>Anatomia do prompt</h3>
+<p>Toda sessão de terminal mostra um prompt antes de cada comando. No Termux da Ana ele é assim:</p>
+
+<pre class="term" data-host="android">ana@android:~$</pre>
+
+<dl class="anatomy">
+  <dt>ana</dt><dd>O usuário logado — a conta do app Termux no Android (o sistema chama ela de <code>u0_a231</code>, como você vê com <code>whoami</code>).</dd>
+  <dt>@</dt><dd>Separador: "usuário arroba máquina".</dd>
+  <dt>android</dt><dd>O nome da máquina (hostname) — neste guia, sempre <code>android</code>.</dd>
+  <dt>:</dt><dd>Separa a máquina da pasta atual.</dd>
+  <dt>~</dt><dd>A pasta atual: <code>~</code> é o atalho para a home (<code>/data/data/com.termux/files/home</code>).</dd>
+  <dt>$</dt><dd>O símbolo de usuário comum. Se vir <code>#</code> no lugar, a sessão está como <strong>root</strong>.</dd>
+</dl>
+
+<hr>
+
+<h2>Experimente agora: o terminal simulado</h2>
+<p>Cada aula deste guia tem uma <strong>caixa de terminal simulada</strong> (igual à do início) que imita o Termux da Ana no navegador. Ela entende os comandos reais do Termux: <code>pkg</code>, <code>termux-*</code>, <code>sshd</code>, <code>adb</code>, <code>sqlite3</code> e os básicos de shell. Se não lembrar de nenhum, digite <code>help</code>.</p>
+
+<p>Comece vendo que o celular da Ana está <strong>rootado e visível via adb</strong>:</p>
+
+<div class="try" data-goal="Dispositivo rootado detectado ✓" data-solucao="adb devices">
+<p class="try-task"><strong>Missão:</strong> digite <code>adb devices</code> e aperte <kbd>Enter</kbd>. Você deve ver o serial <code>R5CT20ABCPIXEL</code> e a linha <code>Dispositivo rootado detectado ✓</code>.</p>
+</div>
+
+<pre class="term" data-host="android">$ adb devices
+List of devices attached
+R5CT20ABCPIXEL	device product:blueline model:Pixel_7_Pro device:blueline
+
+Dispositivo rootado detectado ✓ (1 dispositivo)</pre>
+
+<p>Agora veja a <strong>bateria</strong> do aparelho — a Termux-API devolve um JSON:</p>
+
+<div class="try" data-goal="&quot;level&quot;: 87" data-solucao="termux-battery-status">
+<p class="try-task"><strong>Missão:</strong> digite <code>termux-battery-status</code> e encontre no JSON o campo <code>"level": 87</code> (87% de bateria, carregando na tomada).</p>
+</div>
+
+<pre class="term" data-host="android">$ termux-battery-status
+{
+  "level": 87,
+  "status": "Charging",
+  "temperature": 31.5,
+  "plugged": "AC",
+  "health": "Good"
+}</pre>
+
+<p>Esses dois comandos mostram as duas pontas deste guia: o <strong>adb</strong> fala com o sistema do Android por fora, e o <code>termux-*</code> fala com os sensores do aparelho por dentro do Termux. O nível 2 inteiro é dedicado à Termux-API.</p>
+
+<hr>
+
+<h2>Família Termux: vários apps, um ecossistema</h2>
+<p>O projeto Termux não é um app só — é uma família de apps que se conversam:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>App</th><th>Para que serve</th><th>Instala como</th></tr>
+<tr><td><strong>Termux</strong></td><td>O terminal + ambiente Linux (este guia inteiro)</td><td>App normal (F-Droid recomendado)</td></tr>
+<tr><td><strong>Termux:API</strong></td><td>Os comandos <code>termux-*</code> (bateria, SMS, GPS, câmera, lanterna…) que falem com o Android</td><td><strong>App separado</strong> + pacote <code>pkg install termux-api</code></td></tr>
+<tr><td><strong>Termux:Styling</strong></td><td>Temas e fontes para o terminal</td><td>App separado, opcional</td></tr>
+<tr><td><strong>Termux:Widget</strong></td><td>Atalhos na tela inicial que rodam scripts</td><td>App separado, opcional</td></tr>
+<tr><td><strong>Termux:Boot / Tasker</strong></td><td>Rodar comandos ao ligar o celular / por gatilhos</td><td>Apps separados, nível avançado</td></tr>
+</table>
+</div>
+
+<div class="warn"><strong>Não instale o Termux pela Play Store.</strong> A versão da Google Play está <strong>desatualizada desde 2022 e quebrada</strong> em Androids novos (o Google mudou a política de <code>targetSdkVersion</code> e o app antigo parou de funcionar / foi removido). A fonte correta é o <strong>F-Droid</strong> ou as <strong>releases no GitHub</strong> — a próxima aula, <a href="instalar.html">Instalar certo (F-Droid, não a Play Store)</a>, mostra o passo a passo.</div>
+
+<hr>
+
+<h2>Termux não é a única opção — e é a mais leve</h2>
+<p> Existem outros jeitos de ter Linux no Android, mas quase todos são pesados ou complicados:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Opção</th><th>Como funciona</th><th>Peso</th><th>Quando faz sentido</th></tr>
+<tr><td><strong>Termux</strong></td><td>Ambiente nativo compilado para Android (sem máquina virtual), dentro do próprio app</td><td>Leve (~100 MB + pacotes)</td><td><strong>Sempre que possível</strong> — é o padrão deste guia</td></tr>
+<tr><td><strong>proot-distro</strong></td><td>Uma distro Linux inteira (Ubuntu, Debian…) rodando em cima do Termux via <code>proot</code> (sem root real)</td><td>Médio</td><td>Quando você precisa de apt completo de desktop (nível 2)</td></tr>
+<tr><td><strong>UserLAnd / Andronix</strong></td><td>Apps que instalam uma distro via proot ou VM</td><td>Médio/pesado</td><td>Alternativas prontas, mas menos flexíveis</td></tr>
+<tr><td><strong>Máquina virtual (QEMU/limbo)</strong></td><td>Um computador inteiro emulado dentro do celular</td><td>Pesado (GBs, lento)</td><td>Testes de imagens de PC, quase nunca no dia a dia</td></tr>
+</table>
+</div>
+
+<p>O Termux ganha porque <strong>não emula nada</strong>: os programas são compilados para rodar nativamente no processador do celular (ARM), direto no Android. É por isso que um <code>pkg install python</code> termina em segundos e o Python abre na hora.</p>
+
+<h3>O sistema de arquivos que você vai usar</h3>
+<p>Dentro do Termux, a home da Ana tem esta cara:</p>
+
+<pre class="term" data-host="android">$ ls -la ~
+drwx------ 5 u0_a231 u0_a231 4096 backup.sh
+drwxrwxr-x 2 u0_a231 u0_a231 4096 storage
+drwx------ 3 u0_a231 u0_a231 4096 .termux
+drwxr-xr-x 4 u0_a231 u0_a231 4096 projetos
+-rw------- 1 u0_a231 u0_a231  220 .bashrc</pre>
+
+<ul>
+  <li><code>~/backup.sh</code> e <code>~/backup.log</code> — o script de backup que a Ana agenda (você verá em automação);</li>
+  <li><code>~/storage</code> — a ponte para as fotos e arquivos do celular (aula <a href="storage.html">termux-setup-storage</a>);</li>
+  <li><code>~/.termux</code> — configurações do próprio Termux (fonte, teclas, cores);</li>
+  <li><code>~/projetos</code> — onde ela guarda os códigos que desenvolve no celular;</li>
+  <li><code>~/.bashrc</code> — script que roda toda vez que um terminal abre (personalizações).</li>
+</ul>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>O <strong>Termux</strong> é um terminal Linux real para Android: bash em <code>/data/data/com.termux/files</code>, sem precisar de root.</li>
+  <li>Casos de uso reais no celular: <strong>servidor</strong> (sshd, web), <strong>desenvolvimento</strong> (python, node, bancos), <strong>automação</strong> (cron) e controle do aparelho via <strong>Termux-API</strong>.</li>
+  <li>A máquina deste guia é <code>ana@android</code>: Pixel 7 Pro, Android 14, 8 GB de RAM, com um caminho rootado via <code>adb</code>.</li>
+  <li>O prompt <code>ana@android:~$</code> mostra usuário, máquina, pasta atual (<code>~</code> = home) e o <code>$</code> de usuário comum.</li>
+  <li>Cada aula traz um <strong>terminal simulado</strong> no navegador: <code>adb devices</code> mostrou o Pixel rootado e <code>termux-battery-status</code> mostrou <code>"level": 87</code>.</li>
+  <li>Termux:API é um <strong>app separado</strong> + <code>pkg install termux-api</code>; e a instalação certa vem do <strong>F-Droid</strong>, nunca da Play Store.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="instalar.html">Instalar certo (F-Droid, não a Play Store)</a> — onde baixar o Termux e o Termux:API, e quais permissões o Android vai pedir.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

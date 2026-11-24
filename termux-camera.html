@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>termux-camera-photo: tirar foto pelo terminal no Android | Guia Termux</title>
+<meta name="description" content="termux-camera-photo no Termux: tire fotos pela câmera do celular direto da linha de comando, salve em ~/ ou em ~/storage/shared/DCIM (a galeria), veja o tamanho do arquivo gerado e combine com scripts de backup automático de fotos — exemplos na máquina ana@android com missões no terminal simulado.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">termux-camera-photo</span>: a câmera do celular dentro do terminal</h1>
+<p class="intro">Na aula passada você <a href="termux-api.html">instalou a Termux-API</a> para <em>ler</em> o celular. Agora vamos usar a câmera: o comando <code>termux-camera-photo</code> tira uma foto na hora e salva num arquivo — dá para fazer isso num script, num job agendado ou até num servidor web que tira uma foto quando alguém acessa uma página. Vamos pratiquer na máquina <code>ana@android</code>, cuja câmera "fotografa" e gera um arquivo de 312 KB.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O comando <code>termux-camera-photo &lt;arquivo&gt;</code> e onde a foto é salva;</li>
+  <li>Por que <code>~/storage/shared/DCIM</code> é o destino ideal (a pasta da galeria);</li>
+  <li>O que acontece se o <code>termux-setup-storage</code> não foi rodado (<code>Permission denied</code>);</li>
+  <li>Como escolher a câmera frontal/traseira com <code>--camera</code>;</li>
+  <li>Como ligar foto + backup num script só (o <code>~/backup.sh</code> da Ana).</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>Tirando a primeira foto</h2>
+<p>O uso mais simples: passar o <strong>caminho do arquivo</strong> de destino. O Termux:API aciona a câmera, tira a foto e grava o JPEG no caminho pedido, devolvendo o tamanho do arquivo gerado:</p>
+<pre class="term">$ termux-camera-photo ~/foto.jpg
+Foto salva em /data/data/com.termux/files/home/foto.jpg ✓ (312 KB)</pre>
+<p>Repare no caminho completo: <code>~/</code> dentro do Termux é <code>/data/data/com.termux/files/home</code> (confirme com <code>pwd</code>), o diretório privado do app — invisível para outros apps, mas perfeito para scripts. O <code>✓ (312 KB)</code> no fim confirma que o arquivo foi gravado de verdade e diz o tamanho, útil para log.</p>
+
+<dl class="anatomy">
+  <dt>termux-camera-photo</dt><dd>o comando da Termux-API que tira a foto via app Termux:API.</dd>
+  <dt>~/foto.jpg</dt><dd>o arquivo de destino — a extensão <code>.jpg</code> diz ao comando o formato da imagem.</dd>
+  <dt>Foto salva em ... ✓ (312 KB)</dt><dd>a confirmação: caminho absoluto onde o arquivo foi gravado + tamanho em KB.</dd>
+</dl>
+
+<div class="warn"><strong>Permissão de câmera:</strong> no Android 14, o app Termux:API precisa da permissão de <strong>Câmera</strong>. Sem ela, o comando falha na hora. E se a câmera estiver aberta em outro app, a foto pode não sair — feche o app de câmera antes de rodar o comando num celular real.</div>
+
+<hr>
+
+<h2>Salvando direto na galeria: <code>~/storage/shared/DCIM</code></h2>
+<p>Salvar em <code>~/</code> esconde a foto dentro do Termux. O truque para a foto aparecer na <strong>galeria do celular</strong> é gravar na pasta compartilhada do Android — e é aí que entra o <a href="storage.html">termux-setup-storage</a> da aula de storage: depois dele, <code>~/storage/shared</code> aponta para a raiz do armazenamento interno, e <code>~/storage/shared/DCIM</code> é exatamente a pasta onde o app de câmera salva:</p>
+<pre class="term">$ termux-setup-storage
+Setting up storage access...
+Links criados em ~/storage:
+  dcim -> /storage/emulated/0/DCIM
+  downloads -> /storage/emulated/0/Download
+  pictures -> /storage/emulated/0/Pictures
+  music -> /storage/emulated/0/Music
+  movies -> /storage/emulated/0/Movies
+  shared -> /storage/emulated/0
+Storage configurado ✓ (aceite a permissão no Android)
+$ ls ~/storage
+dcim  downloads  movies  music  pictures  shared
+$ termux-camera-photo ~/storage/shared/DCIM/foto.jpg
+Foto salva em /data/data/com.termux/files/home/storage/shared/DCIM/foto.jpg ✓ (312 KB)</pre>
+
+<div class="warn"><strong>Erro clássico:</strong> rodar <code>ls ~/storage</code> (ou gravar nela) <em>antes</em> do <code>termux-setup-storage</code> devolve <code>Permission denied</code> — o Termux não tem acesso ao armazenamento compartilhado até você criar os links e aceitar a permissão no Android. Se uma foto "sumiu", cheque se o destino começava com <code>~/storage/</code> sem o setup feito.</div>
+
+<hr>
+
+<h2>Escolhendo a câmera: <code>--camera 0</code> e <code>--camera 1</code></h2>
+<p>Celulares têm câmera frontal e traseira. O parâmetro <code>--camera</code> escolhe o índice da câmera (geralmente <code>0</code> = traseira, <code>1</code> = frontal — teste no seu aparelho, a ordem varia):</p>
+<pre class="term">$ termux-camera-photo --camera 0 ~/traseira.jpg
+Foto salva em /data/data/com.termux/files/home/traseira.jpg ✓ (312 KB)
+$ termux-camera-photo --camera 1 ~/selfie.jpg
+Foto salva em /data/data/com.termux/files/home/selfie.jpg ✓ (204 KB)</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Opção</th><th>Significado</th><th>Exemplo</th></tr>
+<tr><td><code>--camera N</code></td><td>índice da câmera (0 = traseira na maioria dos aparelhos, 1 = frontal)</td><td><code>termux-camera-photo --camera 1 ~/selfie.jpg</code></td></tr>
+<tr><td>arquivo de destino</td><td>qualquer caminho gravável; a extensão define o formato (<code>.jpg</code>)</td><td><code>termux-camera-photo ~/foto.jpg</code></td></tr>
+<tr><td>—</td><td>sem permissão de câmera no Termux:API, o comando falha</td><td>Configurações → Apps → Termux:API → Permissões → Câmera</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Foto + backup: automatizando a câmera</h2>
+<p>Foto por comando está bom; foto <em>automática</em> é melhor. A Ana já tem um script de backup que empacota a pasta DCIM — dá para estender a ideia e tirar uma foto antes de empacotar, ou usar a câmera como "câmera de segurança" que fotografa a cada X minutos. Olhe o script que já existe na máquina dela:</p>
+<pre class="term">$ ls
+backup.sh  storage  .bashrc  .termux  projetos
+$ cat backup.sh
+#!/data/data/com.termux/files/usr/bin/bash
+echo "backup iniciado"
+tar -czf ~/backup.tar.gz ~/storage/shared/DCIM
+echo "backup concluido"</pre>
+<p>O <code>backup.sh</code> empacota <code>~/storage/shared/DCIM</code> (a galeria!) num <code>backup.tar.gz</code>. Uma variação "câmera de segurança" adicionaria uma linha de foto antes do empacotamento:</p>
+<pre class="file" data-file="seguranca.sh">#!/data/data/com.termux/files/usr/bin/bash
+# tira uma foto e manda para a pasta da galeria antes do backup
+termux-camera-photo --camera 0 ~/storage/shared/DCIM/intruso-$(date +%H%M%S).jpg
+tar -czf ~/backup.tar.gz ~/storage/shared/DCIM
+echo "backup concluido"</pre>
+<p>Esse é o tipo de automação que a Termux-API destrava: o terminal deixa de ser só texto e passa a <strong>agir sobre o mundo</strong> — fotografar, localizar, notificar. Nas próximas aulas vamos agendar essas tarefas com <a href="termux-job-scheduler.html">termux-job-scheduler e crontab</a> e manter o celular acordado com <a href="wake-lock.html">wake lock</a>.</p>
+
+<hr>
+
+<h2>Missões no simulador</h2>
+<p>Tire suas próprias fotos na máquina <code>ana@android</code> — uma na home e outra direto na pasta DCIM compartilhada:</p>
+
+<div class="try" data-goal="Foto salva" data-solucao="termux-camera-photo ~/foto.jpg">
+<p class="try-task"><strong>Missão:</strong> tire uma foto com <code>termux-camera-photo ~/foto.jpg</code> — a saída confirma com <code>Foto salva em ...</code> e o tamanho (<code>✓ (312 KB)</code>).</p>
+</div>
+
+<div class="try" data-goal="DCIM/foto.jpg" data-solucao="termux-camera-photo ~/storage/shared/DCIM/foto.jpg">
+<p class="try-task"><strong>Missão:</strong> salve a foto direto na galeria: <code>termux-camera-photo ~/storage/shared/DCIM/foto.jpg</code> — repare que o caminho <code>DCIM/foto.jpg</code> aparece na confirmação <code>Foto salva em ...</code>.</p>
+</div>
+
+<hr>
+
+<h2>Erro real: storage sem permissão</h2>
+<p>O erro que mais aparece quando o assunto é foto + galeria é tentar usar <code>~/storage</code> <em>antes</em> de configurar o storage. Na máquina da Ana, se o <code>termux-setup-storage</code> ainda não tivesse rodado, a listagem da pasta compartilhada falharia:</p>
+<pre class="term">$ ls ~/storage
+ls: cannot access '/data/data/com.termux/files/home/storage': Permission denied
+(dica: rode termux-setup-storage antes)</pre>
+<p>Depois do setup (e de aceitar a permissão no Android), a mesma pasta lista o conteúdo real do celular:</p>
+<pre class="term">$ ls ~/storage
+dcim  downloads  movies  music  pictures  shared</pre>
+<p>Ou seja: se o seu <code>termux-camera-photo ~/storage/shared/DCIM/...</code> falhar com permissão negada, o culpado não é a câmera — é o storage não configurado. Rode <code>termux-setup-storage</code> e aceite o diálogo de permissão no Android.</p>
+
+<div class="warn"><strong>Foto sobrescreve sem avisar:</strong> se o arquivo de destino já existe, o <code>termux-camera-photo</code> simplesmente sobrescreve. Em scripts automáticos, use nomes únicos com a data/hora — como no exemplo <code>intruso-$(date +%H%M%S).jpg</code> acima — para não perder fotos anteriores.</div>
+
+<hr>
+
+<h2>Para onde isso leva: backup automático de fotos</h2>
+<p>Tirar foto pelo terminal vira ainda mais útil combinado com agendamento: imagine um job que, a cada 30 minutos, fotografa o ambiente e empacota a DCIM — um "diário visual" automático do celular. Esse é exatamente o projeto prático <a href="projeto-fotos-auto.html">backup automático de fotos (termux-camera + script)</a>, que junta o que vimos aqui com o <a href="termux-job-scheduler.html">termux-job-scheduler</a> e o <a href="projeto-sync-pc.html">rsync para o PC</a>. E se o celular estiver na rede local, dá para consultar as portas abertas com <code>nmap localhost</code> (<code>8022/tcp open ssh</code>) para confirmar que o servidor de arquivos está no ar antes de sincronizar.</p>
+
+<hr>
+
+<h2>Ideias de automação com a câmera</h2>
+<p>Uma vez que o terminal tira fotos, as combinações são ilimitadas — sempre dentro do bom senso e da lei (fotografar pessoas sem consentimento é crime no Brasil):</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Ideia</th><th>Como montar</th><th>Aulas envolvidas</th></tr>
+<tr><td>Foto a cada X minutos (diário visual)</td><td><code>termux-camera-photo</code> dentro de um job agendado</td><td><a href="termux-job-scheduler.html">job-scheduler</a></td></tr>
+<tr><td>Backup da galeria automático</td><td>foto + <code>tar</code> da DCIM + <code>rsync</code> pro PC</td><td><a href="projeto-fotos-auto.html">projeto fotos-auto</a>, <a href="projeto-sync-pc.html">sync PC</a></td></tr>
+<tr><td>Câmera de segurança simples</td><td>foto para <code>~/storage/shared/DCIM</code> com nome por hora</td><td>esta aula</td></tr>
+<tr><td>Foto ao falhar login no servidor</td><td>hook no <code>sshd</code> que fotografa a frontal</td><td><a href="sshd.html">sshd</a>, <a href="seguranca-termux.html">segurança</a></td></tr>
+<tr><td>Foto exposta só na sua rede</td><td>servidor web local servindo a pasta das fotos</td><td><a href="servidor-web.html">servidor web</a></td></tr>
+</table>
+</div>
+
+<div class="warn"><strong>Segurança: nunca exponha a câmera na internet pública.</strong> Se você usar túnel (<code>ngrok http 8080</code>, da aula de <a href="rede-no-celular.html">rede</a>) num servidor que serve a pasta das fotos, qualquer pessoa com o link vê suas fotos. Mantenha esses testes só na rede local (Wi-Fi de casa) ou com senha forte — e lembre que <code>termux-camera-photo</code> usa a câmera sem 보여 aviso na tela do celular num app real (o LED indicador de câmera acende, mas não conte só com ele).</div>
+
+<hr>
+
+<h2>Sequência completa: do setup à foto na galeria</h2>
+<p>Juntando tudo numa sequência só — é exatamente o que você rodaria numa máquina nova:</p>
+<pre class="term">$ termux-setup-storage
+Setting up storage access...
+Links criados em ~/storage:
+  dcim -> /storage/emulated/0/DCIM
+  ...
+Storage configurado ✓ (aceite a permissão no Android)
+$ ls ~/storage
+dcim  downloads  movies  music  pictures  shared
+$ termux-camera-photo ~/storage/shared/DCIM/foto.jpg
+Foto salva em /data/data/com.termux/files/home/storage/shared/DCIM/foto.jpg ✓ (312 KB)</pre>
+<p>Repare na anatomia do caminho final: o Termux salva em <code>~/storage/shared/DCIM/foto.jpg</code>, que é um <strong>link simbólico</strong> para <code>/storage/emulated/0/DCIM/foto.jpg</code> — ou seja, o arquivo aparece na galeria, nos apps de foto e no computador quando você plugar o celular no USB.</p>
+
+<div class="warn"><strong>Câmera ocupada:</strong> se outro app estiver usando a câmera (app de foto aberto, videochamada), o <code>termux-camera-photo</code> pode falhar ou devolver foto preta num celular real. Feche o app de câmera antes de rodar o comando em scripts.</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>termux-camera-photo &lt;arquivo&gt;</code> tira uma foto e salva no caminho indicado, confirmando com <code>Foto salva em ... ✓ (312 KB)</code>.</li>
+  <li>Em <code>~/</code> a foto fica privada no Termux; em <code>~/storage/shared/DCIM</code> ela cai na <strong>galeria</strong> do celular.</li>
+  <li>Sem <code>termux-setup-storage</code>, gravar em <code>~/storage</code> dá <code>Permission denied</code>.</li>
+  <li><code>--camera 0</code> / <code>--camera 1</code> escolhem traseira/frontal (a ordem varia por aparelho).</li>
+  <li>Combine com scripts: o <code>~/backup.sh</code> da Ana já empacota a DCIM — dá para adicionar foto automática.</li>
+  <li>Permissão de câmera no app Termux:API é obrigatória no Android 14.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="termux-torch.html">lanterna, vibração e toast pelo terminal</a> — <code>termux-torch on/off</code>, <code>termux-vibrate</code> e <code>termux-toast</code> para o celular "falar" com você.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

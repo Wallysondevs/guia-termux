@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Banco de dados local no Termux: sqlite3 e PostgreSQL no celular | Guia Termux</title>
+<meta name="description" content="Banco de dados no próprio celular: sqlite3 com pkg install sqlite (sqlite3 meu.db 'select 1;' imprime 1, .tables lista usuarios produtos), criar tabela e inserir dados, e PostgreSQL 16.2 completo no Termux com psql. Veja exemplos de uso com servidor web, tabela de quando usar cada um e pratique no terminal simulado.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Banco de dados <span class="hl">local</span>: sqlite3 e PostgreSQL no celular</h1>
+
+<p class="intro">Seu app no celular precisa guardar dados? Você tem duas ótimas opções sem sair do Termux: o <strong>SQLite</strong> (um banco inteiro num único arquivo <code>.db</code> — perfeito para apps mobile) e o <strong>PostgreSQL 16.2</strong> completo, rodando no próprio celular para testes e projetos maiores. Nesta aula você instala, cria um banco, cria tabela, insere e consulta — tudo na máquina <code>ana@android</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Instalar: <code>pkg install sqlite</code> e <code>pkg install postgresql</code>.</li>
+  <li>SQLite: <code>sqlite3 meu.db "select 1;"</code> → imprime <code>1</code>; <code>.tables</code> → <code>usuarios  produtos</code>.</li>
+  <li>Criar tabela e inserir dados num arquivo <code>.db</code> na home.</li>
+  <li>PostgreSQL no Termux: inicializar o cluster, subir o serviço e entrar com <code>psql</code>.</li>
+  <li>Quando usar cada um (tabela comparativa).</li>
+  <li>Como o banco conversa com o servidor web da aula anterior (python + sqlite no mesmo celular).</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>SQLite: um banco inteiro num arquivo</h2>
+<p>O SQLite não tem servidor — o banco é <strong>um arquivo só</strong> (<code>meu.db</code>), e a biblioteca abre ele direto. Ideal para apps no celular: os dados ficam na home do Termux e dá para copiar o arquivo como backup.</p>
+
+<pre class="term" data-host="android">$ pkg install sqlite
+...
+sqlite instalado ✓
+$ sqlite3 --version
+3.45.1 2024-01-15</pre>
+
+<h3>O primeiro teste: select 1</h3>
+<p>O comando de "está vivo?" do SQL:</p>
+
+<pre class="term" data-host="android">$ sqlite3 meu.db "select 1;"
+1</pre>
+
+<p>Se imprimiu <code>1</code>, o banco abriu e respondeu. Note a sintaxe: <code>sqlite3 ARQUIVO "COMANDO SQL"</code> — o banco é o primeiro argumento, o SQL vai entre aspas (porque tem ponto e vírgula, que o shell engoliria se não fosse pelas aspas).</p>
+
+<h3>Vendo as tabelas: .tables</h3>
+<p>Comandos que começam com <code>.</code> são <strong>comandos internos do sqlite3</strong>, não SQL:</p>
+
+<div class="try" data-goal="usuarios  produtos" data-solucao="sqlite3 meu.db &quot;.tables&quot;">
+<p class="try-task"><strong>Missão:</strong> rode <code>sqlite3 meu.db ".tables"</code> (com as aspas!). A saída deve ser <code>usuarios  produtos</code> — as duas tabelas do banco da Ana.</p>
+</div>
+
+<pre class="term" data-host="android">$ sqlite3 meu.db ".tables"
+usuarios  produtos
+$ sqlite3 meu.db ".schema usuarios"
+CREATE TABLE usuarios (
+  id INTEGER PRIMARY KEY,
+  nome TEXT NOT NULL,
+  email TEXT
+);</pre>
+
+<dl class="anatomy">
+  <dt>sqlite3</dt><dd>O cliente de linha de comando do SQLite.</dd>
+  <dt>meu.db</dt><dd>O arquivo do banco — se não existir, o sqlite3 <strong>cria na hora</strong>.</dd>
+  <dt>".tables"</dt><dd>Comando interno (ponto) que lista as tabelas. Aspas porque o shell trata <code>.</code> normal, mas manter as aspas é boa prática com comandos SQL.</dd>
+</dl>
+
+<hr>
+
+<h2>Criando tabela, inserindo e consultando</h2>
+<p>Fluxo completo num banco novo — o que um app faria por baixo dos panos:</p>
+
+<pre class="term" data-host="android">$ sqlite3 meu.db
+sqlite&gt; CREATE TABLE produtos (id INTEGER PRIMARY KEY, nome TEXT, preco REAL);
+sqlite&gt; INSERT INTO produtos (nome, preco) VALUES ('café', 4.50), ('pão de queijo', 3.00);
+sqlite&gt; SELECT * FROM produtos;
+1|café|4.5
+2|pão de queijo|3.0
+sqlite&gt; SELECT nome FROM produtos WHERE preco &lt; 4;
+pão de queijo
+sqlite&gt; .quit
+$ ls -lh meu.db
+-rw------- 1 u0_a231 u0_a231 12K meu.db</pre>
+
+<p>Dentro do prompt <code>sqlite&gt;</code>, cada comando SQL termina com <code>;</code>. O <code>.quit</code> (ou <kbd>Ctrl</kbd>+<kbd>D</kbd>) sai. Repare que o banco inteiro virou um arquivo de 12 KB na home — dá para dar <code>scp</code> dele para o PC (aula <a href="sshd.html">sshd</a>) como backup.</p>
+
+<pre class="file" data-file="~/projetos/meu-site/app.py">#!/data/data/com.termux/files/usr/bin/python
+import sqlite3
+
+# o banco vive na mesma pasta do app
+con = sqlite3.connect("meu.db")
+cur = con.cursor()
+for linha in cur.execute("SELECT nome, preco FROM produtos"):
+    print(linha)
+con.close()</pre>
+
+<p>Esse é o jeito real de usar: o Python (ou Node, ou qualquer linguagem) abre o <code>.db</code> com a biblioteca padrão <code>sqlite3</code> — sem servidor, sem porta, sem senha. É por isso que SQLite é o banco padrão de apps mobile.</p>
+
+<hr>
+
+<h2>PostgreSQL no Termux: o "banco de gente grande" no bolso</h2>
+<p>Para projetos maiores ou para aprender SQL de verdade, o Termux traz o <strong>PostgreSQL completo</strong> — o mesmo que roda em servidores de produção:</p>
+
+<div class="try" data-goal="PostgreSQL 16.2 no Termux ✓" data-solucao="psql">
+<p class="try-task"><strong>Missão:</strong> rode <code>psql</code> no terminal. A saída deve mostrar <code>PostgreSQL 16.2 no Termux ✓</code> — a versão do servidor de banco instalada no celular da Ana.</p>
+</div>
+
+<pre class="term" data-host="android">$ pkg install postgresql
+...
+postgresql instalado ✓
+$ psql
+PostgreSQL 16.2 no Termux ✓
+psql -U postgres -d meubanco (simulado)</pre>
+
+<p>Num Termux real, depois de instalar você inicializa o cluster de dados e sobe o serviço:</p>
+
+<pre class="term" data-host="android">$ initdb ~/pgdata            « cria o cluster em ~/pgdata
+$ pg_ctl -D ~/pgdata -l ~/pg.log start   « liga o servidor postgres
+$ psql -U postgres -d meubanco
+meubanco=# CREATE TABLE teste (id int);
+meubanco=# \q</pre>
+
+<div class="warn"><strong>PostgreSQL no celular é para desenvolvimento e estudo</strong> — não exponha a porta 5432 na rede. O Termux roda o postgres como usuário comum, sem systemd; para parar, use <code>pg_ctl stop</code>. Para produção de verdade, use um servidor dedicado (ou o proot-distro com systemd, no nível 2).</div>
+
+<hr>
+
+<h2>SQLite × PostgreSQL: qual usar no celular?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>SQLite</th><th>PostgreSQL (no Termux)</th></tr>
+<tr><td><strong>O que é</strong></td><td>Biblioteca dentro do app; banco = 1 arquivo <code>.db</code></td><td>Servidor completo, vários bancos, vários usuários</td></tr>
+<tr><td><strong>Instalação</strong></td><td><code>pkg install sqlite</code></td><td><code>pkg install postgresql</code> + <code>initdb</code></td></tr>
+<tr><td><strong>Porta/rede</strong></td><td>Nenhuma (arquivo local)</td><td>Porta 5432 (só localhost por padrão)</td></tr>
+<tr><td><strong>Quando usar</strong></td><td>Apps mobile, dados locais, protótipos rápidos</td><td>Aprender SQL a fundo, testar migrações, apps que vão migrar para servidor</td></tr>
+<tr><td><strong>Backup</strong></td><td>Copiar o arquivo <code>.db</code></td><td><code>pg_dump meubanco &gt; backup.sql</code></td></tr>
+<tr><td><strong>Na máquina da Ana</strong></td><td><code>sqlite3 meu.db "select 1;"</code> → <code>1</code>; <code>.tables</code> → <code>usuarios  produtos</code></td><td><code>psql</code> → <code>PostgreSQL 16.2 no Termux ✓</code></td></tr>
+</table>
+</div>
+
+<p>Regra prática: <strong>começou no celular → SQLite</strong>. Vai virar um serviço com vários acessos → PostgreSQL (e depois migra o mesmo SQL para um servidor de verdade, porque a linguagem é a mesma).</p>
+
+<hr>
+
+<h2>Banco + servidor web no mesmo celular</h2>
+<p>Juntando com a aula <a href="servidor-web.html">servidor web</a>: o servidor Python serve páginas e o SQLite guarda os dados — tudo no mesmo aparelho, na mesma pasta:</p>
+
+<pre class="term" data-host="android">$ cd ~/projetos/meu-site
+$ ls
+app.py  meu.db  index.html
+$ python -m http.server 8080
+Serving HTTP on 0.0.0.0 port 8080 (http://192.168.1.42:8080/ ) ...
+« o app.py abre meu.db com sqlite3.connect e responde as páginas
+« de outro aparelho na Wi-Fi: http://192.168.1.42:8080 funciona</pre>
+
+<p>Essa é a stack mínima de um projeto full-stack de bolso: <strong>HTTP (python) + banco (sqlite) + arquivos (~/storage)</strong>, tudo no Termux.</p>
+
+<hr>
+
+<h2>Operações do dia a dia no SQLite</h2>
+<p>Além de criar e consultar, você vai precisar atualizar, apagar e fazer backup:</p>
+
+<pre class="term" data-host="android">$ sqlite3 meu.db
+sqlite&gt; UPDATE produtos SET preco = 5.00 WHERE nome = 'café';
+sqlite&gt; DELETE FROM produtos WHERE nome = 'pão de queijo';
+sqlite&gt; SELECT count(*) FROM usuarios;
+7
+sqlite&gt; .backup ~/backup-meu.db     « backup quentinho do banco inteiro
+sqlite&gt; .quit
+$ sqlite3 meu.db ".dump" | head -5
+PRAGMA foreign_keys=OFF;
+BEGIN TRANSACTION;
+CREATE TABLE usuarios (…);
+INSERT INTO usuarios VALUES(1,'Ana','ana@exemplo.com');</pre>
+
+<ul>
+  <li><code>.backup ARQUIVO</code> — copia o banco com segurança (melhor que <code>cp</code> com banco aberto);</li>
+  <li><code>.dump</code> — despeja o banco inteiro como SQL texto (ótimo para migrar de aparelho);</li>
+  <li><code>DROP TABLE produtos;</code> — apaga a tabela inteira (cuidado: sem lixeira no SQL);</li>
+  <li><code>VACUUM;</code> — compacta o arquivo depois de muitos DELETEs.</li>
+</ul>
+
+<pre class="file" data-file="~/backup-db.sh">#!/data/data/com.termux/files/usr/bin/bash
+# backup diário do banco para a pasta compartilhada
+sqlite3 ~/projetos/meu-site/meu.db ".backup ~/storage/downloads/meu-db-$(date +%F).db"
+echo "backup do banco concluido"</pre>
+
+<p>Esse script é o primo do <code>~/backup.sh</code> da Ana (que compacta as fotos) — dá para agendar os dois no <code>crontab</code> (nível 2) e mandar o backup para o PC com <code>rsync</code> via SSH.</p>
+
+<div class="warn"><strong>SQLite bloqueia escrita simultânea:</strong> se dois processos escreverem no mesmo <code>.db</code> ao mesmo tempo, um recebe <code>database is locked</code>. Em app de celular isso raramente acontece (um app só), mas em servidor web com várias requisições, use o modo WAL: <code>PRAGMA journal_mode=WAL;</code> — ou parta para o PostgreSQL.</div>
+
+<hr>
+
+<h2>Cola de consultas SQL que você mais usa</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Quero…</th><th>Comando</th><th>Exemplo</th></tr>
+<tr><td>Ver todas as tabelas</td><td><code>.tables</code></td><td><code>sqlite3 meu.db ".tables"</code> → <code>usuarios  produtos</code></td></tr>
+<tr><td>Ver a estrutura de uma tabela</td><td><code>.schema TABELA</code></td><td><code>.schema usuarios</code></td></tr>
+<tr><td>Contar linhas</td><td><code>SELECT count(*) FROM t;</code></td><td><code>SELECT count(*) FROM usuarios;</code> → <code>7</code></td></tr>
+<tr><td>Buscar por texto parcial</td><td><code>LIKE '%termo%'</code></td><td><code>SELECT * FROM usuarios WHERE nome LIKE '%ana%';</code></td></tr>
+<tr><td>Ordenar e limitar</td><td><code>ORDER BY … LIMIT n</code></td><td><code>SELECT * FROM produtos ORDER BY preco DESC LIMIT 3;</code></td></tr>
+<tr><td>Juntar duas tabelas</td><td><code>JOIN</code></td><td><code>SELECT u.nome, p.nome FROM usuarios u JOIN pedidos p ON p.user_id = u.id;</code></td></tr>
+<tr><td>Criar índice (deixa busca rápida)</td><td><code>CREATE INDEX …</code></td><td><code>CREATE INDEX idx_nome ON usuarios(nome);</code></td></tr>
+<tr><td>Backup do banco</td><td><code>.backup ARQ</code> ou <code>.dump</code></td><td><code>sqlite3 meu.db ".backup ~/bk.db"</code></td></tr>
+</table>
+</div>
+
+<p>No PostgreSQL a sintaxe é a mesma (é o mesmo SQL) — só muda o prompt: <code>meubanco=#</code> em vez de <code>sqlite&gt;</code>, e os comandos internos começam com <code>\</code> (barra invertida): <code>\dt</code> lista tabelas, <code>\q</code> sai, <code>\l</code> lista bancos.</p>
+
+<hr>
+
+<h2>Erros comuns de SQL no terminal</h2>
+<div class="warn"><strong><code>Error: near "…": syntax error</code></strong> — quase sempre esqueceu o ponto e vírgula no fim do comando SQL dentro do <code>sqlite&gt;</code>. No sqlite3 interativo, o comando só roda quando você fecha com <code>;</code> e aperta Enter.</div>
+<div class="warn"><strong><code>Error: no such table: produtos</code></strong> — você abrió outro arquivo <code>.db</code> (o sqlite3 cria um vazio na hora se o nome não existe!). Confira com <code>.tables</code> e com <code>ls -lh *.db</code> qual banco está aberto.</div>
+<div class="warn"><strong><code>database is locked</code></strong> — outro processo está escrevendo no mesmo banco. Espere alguns segundos e tente de novo; se persistir, ative o modo WAL (<code>PRAGMA journal_mode=WAL;</code>) ou migre para o PostgreSQL.</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><strong>SQLite</strong>: banco inteiro num arquivo <code>.db</code>; <code>pkg install sqlite</code>; <code>sqlite3 meu.db "select 1;"</code> imprime <code>1</code>.</li>
+  <li><code>sqlite3 meu.db ".tables"</code> lista as tabelas → <code>usuarios  produtos</code>; <code>.schema</code> mostra o CREATE TABLE.</li>
+  <li>Fluxo: <code>CREATE TABLE</code> → <code>INSERT</code> → <code>SELECT</code> → <code>.quit</code>; backup = copiar o arquivo.</li>
+  <li><strong>PostgreSQL 16.2</strong> roda completo no Termux: <code>pkg install postgresql</code>, <code>initdb</code>, <code>psql</code> → <code>PostgreSQL 16.2 no Termux ✓</code>.</li>
+  <li>Use SQLite para dados locais de app; PostgreSQL para estudo/projetos que um dia sobem para servidor.</li>
+  <li>Stack de bolso: python http.server (HTTP) + sqlite (dados) + ~/storage (arquivos) no mesmo celular.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="adb.html">adb: contrôler o celular pelo PC (com root)</a> — o Pixel 7 Pro da Ana é rootado: <code>adb devices</code>, <code>adb root</code> e <code>adb shell whoami</code> mostrando <code>root</code>.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

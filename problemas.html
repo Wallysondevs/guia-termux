@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Problemas comuns no Termux e soluções (FAQ) — app não abre, storage negado, pacote não acha, SSH não conecta, bateria com wake lock | Guia Termux</title>
+<meta name="description" content="FAQ de troubleshooting do Termux em português: os problemas que mais aparecem no dia a dia na máquina ana@android (Pixel 7 Pro, Android 14) — app que não abre ou trava na tela preta, Permission denied no ~/storage sem termux-setup-storage, Unable to locate package no pkg, SSH recusado na porta 8022 com sshd parado, Termux-API sem permissão, command not found e bateria drainando por wake lock esquecido. Cada um com a mensagem real, a causa e o passo a passo do conserto, tabela sintoma → causa → solução e missões no terminal simulado.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">Problemas</span> comuns no Termux — FAQ de conserto</h1>
+
+<p class="intro">Todo mundo trava no Termux em alguma hora. A boa notícia: <strong>a mensagem de erro quase sempre diz o que fazer</strong> — e os problemas mais comuns são sempre os mesmos cinco ou seis. Esta página é o FAQ do guia, no formato <strong>sintoma → causa → solução</strong>, usando os erros reais da máquina da Ana (<code>ana@android</code>, Pixel 7 Pro com Android 14).</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O app não abre / trava na tela preta: reinstalar pela F-Droid, limpar dados, permissão de armazenamento.</li>
+  <li><code>Permission denied</code> no <code>~/storage</code>: <code>termux-setup-storage</code> + aceitar a permissão no Android.</li>
+  <li><code>Unable to locate package</code>: <code>pkg update</code> + nome certo via <code>pkg search</code>.</li>
+  <li>SSH recusado na 8022: <code>sshd</code> rodando, IP certo (<code>ifconfig</code>), mesma rede Wi-Fi, <code>passwd</code>/chaves.</li>
+  <li>Bateria drainando: <code>termux-wake-unlock</code> e cuidado com wake lock esquecido.</li>
+  <li>Termux-API muda: app Termux:API instalado e permissões concedidas.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>O roteiro geral de diagnóstico</h2>
+<ol class="passo">
+  <li><strong>Leia a mensagem inteira</strong> — no Termux ela costuma terminar com uma dica entre parênteses.</li>
+  <li><strong>Verifique o estado básico</strong>: <code>pkg update</code> em dia? <code>termux-setup-storage</code> feito? <code>sshd</code> no ar? IP atual com <code>ifconfig</code>?</li>
+  <li><strong>Reproduza no simulador</strong> abaixo: as missões provocam os erros de propósito para você treinar o reconhecimento.</li>
+  <li>Se o app inteiro não abre, é caso de reinstalar (seção 1) — não de comando.</li>
+</ol>
+
+<hr>
+
+<h2>Tabela rápida: sintoma → causa → solução</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Sintoma</th><th>Causa mais comum</th><th>Solução</th></tr>
+<tr><td>App não abre / tela preta / fecha sozinho</td><td>instalação quebrada (Play Store), cache corrompido ou falta permissão de armazenamento</td><td>reinstale pela <strong>F-Droid</strong>, ou Ajustes → Apps → Termux → Armazenamento → Limpar dados (depois rode <code>pkg update</code>)</td></tr>
+<tr><td><code>ls ~/storage</code> → Permission denied</td><td>storage nunca configurado ou permissão do Android negada</td><td><code>termux-setup-storage</code> e toque em "Permitir" na caixa do sistema</td></tr>
+<tr><td><code>pkg install X</code> → Unable to locate package</td><td>nome errado ou lista de pacotes desatualizada</td><td><code>pkg update</code> + <code>pkg search termo</code> para achar o nome exato</td></tr>
+<tr><td><code>ssh ana@… -p 8022</code> → Connection refused</td><td><code>sshd</code> não está rodando no celular</td><td>no Termux rode <code>sshd</code>; confira IP com <code>ifconfig</code> (pode ter mudado)</td></tr>
+<tr><td>SSH dá "Permission denied (publickey/password)"</td><td>senha errada ou chave não autorizada</td><td>rode <code>passwd</code> no Termux para trocar a senha; ou <code>ssh-keygen</code> + copie a chave pública</td></tr>
+<tr><td><code>termux-sms-list</code> falha</td><td>pacote <code>termux-api</code> ou app Termux:API sem permissão</td><td><code>pkg install termux-api</code> + app Termux:API da F-Droid com SMS/Localized liberado</td></tr>
+<tr><td>comando qualquer → command not found</td><td>typo ou pacote não instalado</td><td><code>help</code> lista os comandos; <code>pkg install …</code> instala o pacote</td></tr>
+<tr><td>Bateria esgota em horas</td><td><code>termux-wake-lock</code> esquecido (tela ligada) ou servidor rodando sem carregador</td><td>rode <code>termux-wake-unlock</code>; confira <code>termux-battery-status</code> (level/status)</td></tr>
+<tr><td>Wi-Fi mudou e nada conecta</td><td>IP novo (DHCP) — o <code>192.168.1.42</code> de ontem não é o de hoje</td><td>cada conexão rode <code>ifconfig</code> e anote o <code>inet</code> atual</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. O app não abre (tela preta, fecha sozinho, trava no logo)</h2>
+<div class="warn"><strong>Sintoma real:</strong> o Termux abre e fecha na hora, ou fica numa tela preta piscando, ou "Termux parou".
+<pre class="term" data-host="android">$ adb logcat
+--------- beginning of main
+I/ActivityManager: Displayed com.termux/.app.TermuxActivity
+E/AndroidRuntime: FATAL EXCEPTION: main …</pre></div>
+<p><strong>Causas comuns:</strong> (1) você instalou pela <strong>Play Store</strong> — a versão de lá está desatualizada e quebra em Android novos; (2) o cache/dados corromperam depois de uma atualização do Android; (3) falta a permissão de armazenamento nas configurações do app. <strong>Solução, nesta ordem:</strong></p>
+<ol class="passo">
+  <li>Desinstale e <strong>reinstale pela F-Droid</strong> (fdroid.org) — a fonte oficial e atualizada. Veja <a href="instalar.html">instalar certo</a>.</li>
+  <li>Se não quiser perder os arquivos: Ajustes → Apps → Termux → Armazenamento → <strong>Limpar cache</strong> (só o cache; "Limpar dados" apaga o home inteiro).</li>
+  <li>Conceda a permissão de <strong>arquivos/mídia</strong> nas configurações do app Termux.</li>
+  <li>Após reinstalar, rode <code>pkg update &amp;&amp; pkg upgrade</code> para reconstruir o ambiente.</li>
+</ol>
+
+<hr>
+
+<h2>2. Storage negado — "Permission denied" no ~/storage</h2>
+<div class="warn"><strong>Erro real:</strong>
+<pre class="term" data-host="android">$ ls ~/storage
+ls: cannot access '/data/data/com.termux/files/home/storage': Permission denied
+(dica: rode termux-setup-storage antes)</pre></div>
+<p><strong>Causa:</strong> o Android isola cada app; o Termux só vê o próprio diretório até você autorizar o acesso às pastas compartilhadas (SAF). <strong>Solução:</strong> rode <code>termux-setup-storage</code>, aceite a caixa de diálogo do Android ("Permitir acesso a esta pasta") e teste:</p>
+<pre class="term" data-host="android">$ termux-setup-storage
+Storage configurado ✓ (aceite a permissão no Android)
+$ ls ~/storage
+dcim  downloads  movies  music  pictures  shared</pre>
+<p>As fotos do celular ficam em <code>~/storage/dcim</code> (atalho para <code>/storage/emulated/0/DCIM</code>). Aula completa: <a href="storage.html">termux-setup-storage</a>. Erro detalhado em <a href="ref-erros.html">ref-erros</a>.</p>
+
+<hr>
+
+<h2>3. O pacote não acha — "Unable to locate package"</h2>
+<div class="warn"><strong>Erro real:</strong>
+<pre class="term" data-host="android">$ pkg install node
+Unable to locate package node</pre></div>
+<p><strong>Causa:</strong> no Termux o pacote chama-se <code>nodejs</code>, não <code>node</code> — e a lista de pacotes pode estar velha. <strong>Solução:</strong> atualize a lista e procure o nome certo antes de instalar:</p>
+<pre class="term" data-host="android">$ pkg update
+Reading package lists... Done
+$ pkg search node
+nodejs/stable 20.11.1 nodejs
+$ pkg install nodejs
+nodejs instalado ✓
+$ node --version
+v20.11.1</pre>
+<p>Se o <code>pkg search</code> responder <code>No matches found</code>, o programa pode não existir para Android no repositório Termux — procure alternativas (ex.: <code>pkg search editor</code> para achar vim/nano). Cola: <a href="ref-pkg.html">ref-pkg</a>.</p>
+
+<hr>
+
+<h2>4. SSH não conecta — "Connection refused" na 8022</h2>
+<div class="warn"><strong>Erro real (visto do PC):</strong>
+<pre class="term" data-host="notebook">$ ssh ana@192.168.1.42 -p 8022
+ssh: connect to host 192.168.1.42 port 8022: Connection refused</pre></div>
+<p><strong>Causas, da mais comum para a menos comum:</strong> (1) o <code>sshd</code> não está rodando no Termux — ele <strong>não inicia sozinho</strong>; (2) o IP mudou (Wi-Fi reconectou e o DHCP deu outro número); (3) PC e celular em redes diferentes (2,4 GHz vs 5 GHz, ou dados móveis no meio); (4) firewall bloqueando a 8022. <strong>Solução, passo a passo:</strong></p>
+<pre class="term" data-host="android">$ sshd
+Iniciando sshd na porta 8022...
+sshd rodando ✓ — conecte do PC com:
+  ssh ana@192.168.1.42 -p 8022
+$ ifconfig
+wlan0: …
+        inet 192.168.1.42  netmask 255.255.255.0
+$ ping -c 1 8.8.8.8
+1 packets transmitted, 1 packets received, 0.0% packet loss ✓</pre>
+<ol class="passo">
+  <li>No celular: <code>pkg install openssh</code> (se ainda não tiver) e rode <code>sshd</code>.</li>
+  <li>Confira o IP <strong>atual</strong> com <code>ifconfig</code> — anote o <code>inet</code> da wlan0.</li>
+  <li>No PC, na mesma rede: <code>ssh ana@IP -p 8022</code> (a porta do Termux é <strong>8022</strong>, não 22).</li>
+  <li>Se pedir senha e recusar: rode <code>passwd</code> no Termux para definir uma senha forte. Prefere chave? <code>ssh-keygen</code> no celular e copie a <code>id_rsa.pub</code> para o PC.</li>
+  <li>Para o sshd subir sozinho no boot: <code>termux-job-scheduler</code> ou um script no <code>~/.bashrc</code> — veja <a href="termux-job-scheduler.html">agendamento</a>.</li>
+</ol>
+<p>Aula completa: <a href="sshd.html">sshd no Termux</a>. Depois de conectar, rode <code>nmap localhost</code> no celular para ver a porta aberta: <code>8022/tcp open ssh</code>.</p>
+
+<hr>
+
+<h2>5. Bateria drainando — wake lock esquecido</h2>
+<div class="warn"><strong>Sintoma:</strong> o celular esquenta e a bateria cai em poucas horas mesmo "sem usar". Checando:
+<pre class="term" data-host="android">$ termux-battery-status
+{
+  "level": 12,
+  "status": "Discharging",
+  "temperature": 41.0,
+  …
+}</pre></div>
+<p><strong>Causa clássica:</strong> um script rodou <code>termux-wake-lock</code> para manter a tela ligada (ex.: servidor web ou backup de fotos) e nunca rodou <code>termux-wake-unlock</code>. A tela ligada é o maior consumidor de bateria do Android. <strong>Solução:</strong></p>
+<pre class="term" data-host="android">$ termux-wake-unlock
+Wake lock liberado.
+$ termux-wake-lock   « só durante o script, sempre com unlock no fim
+Wake lock adquirido ✓ (a tela não apaga enquanto segurar)</pre>
+<p>Regra de ouro: <strong>todo <code>termux-wake-lock</code> precisa de um <code>termux-wake-unlock</code> no fim do script</strong> (use <code>trap</code> no bash para garantir mesmo se o script morrer no meio). Aula: <a href="wake-lock.html">Wake lock e termux-services</a>.</p>
+
+<hr>
+
+<h2>6. Termux-API não responde (termux-*)</h2>
+<p>Se <code>termux-battery-status</code> responde <code>command not found</code>, faltou o pacote. Se responde permissão negada, faltou o app:</p>
+<pre class="term" data-host="android">$ termux-battery-status
+termux-battery-status: command not found (simulado — tente 'help')
+$ pkg install termux-api
+termux-api instalado ✓
+$ termux-sms-list   « sem a permissão no app Termux:API → erro de permissão
+$ termux-battery-status   « depois de liberar no app Termux:API:
+{
+  "level": 87,
+  "status": "Charging",
+  …
+}</pre>
+<p><strong>Solução:</strong> instale o pacote <code>termux-api</code> <strong>e</strong> o app <strong>Termux:API</strong> (F-Droid), abra o app e conceda cada permissão (SMS, localização, câmera, lanterna…). Cola completa: <a href="ref-termux.html">ref-termux</a>.</p>
+
+<hr>
+
+<h2>7. Comando qualquer dá "command not found"</h2>
+<p>Typo é a causa nº 1; pacote não instalado é a nº 2. O próprio terminal te ajuda:</p>
+<pre class="term" data-host="android">$ nmap localhost
+nmap: command not found (simulado — tente 'help')
+$ help
+Termux simulado (ana@android):
+  pkg update | pkg install python | pkg list-installed | pkg search vim
+  termux-setup-storage   ls ~/storage
+  …
+$ pkg install nmap
+nmap instalado ✓
+$ nmap localhost
+8022/tcp open  ssh
+Nmap done: 1 IP address scanned ✓</pre>
+
+<hr>
+
+<h2>Treine os consertos no terminal simulado</h2>
+
+<div class="try" data-goal="Storage configurado ✓" data-solucao="termux-setup-storage">
+<p class="try-task"><strong>Missão 1 — consertar o storage:</strong> primeiro rode <code>ls ~/storage</code> e veja o <code>Permission denied</code>; depois rode <code>termux-setup-storage</code> (aceite a permissão) e rode <code>ls ~/storage</code> de novo — agora vem <code>dcim  downloads  movies  music  pictures  shared</code>.</p>
+</div>
+
+<div class="try" data-goal="sshd rodando ✓" data-solucao="sshd">
+<p class="try-task"><strong>Missão 2 — subir o SSH:</strong> rode <code>sshd</code> e veja as instruções de conexão (<code>ssh ana@192.168.1.42 -p 8022</code>). Depois rode <code>ifconfig</code> para achar o IP e <code>nmap localhost</code> para confirmar a porta 8022 aberta.</p>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>App não abre → reinstale pela <strong>F-Droid</strong>, limpe cache, dê permissão de arquivos; depois <code>pkg update &amp;&amp; pkg upgrade</code>.</li>
+  <li><code>Permission denied</code> no <code>~/storage</code> → <code>termux-setup-storage</code> + "Permitir" na caixa do Android.</li>
+  <li><code>Unable to locate package</code> → <code>pkg update</code> + <code>pkg search</code> para o nome exato.</li>
+  <li>SSH recusado na 8022 → <code>sshd</code> no celular, IP atual via <code>ifconfig</code>, mesma rede Wi-Fi, <code>passwd</code>/<code>ssh-keygen</code>.</li>
+  <li>Bateria drainando → procure <code>termux-wake-lock</code> ativo e rode <code>termux-wake-unlock</code>; cheque com <code>termux-battery-status</code>.</li>
+  <li><code>termux-*</code> falhando → pacote <code>termux-api</code> + app Termux:API com permissões.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="quiz.html">Quiz final de Termux</a> — 10 perguntas de múltipla escolha sobre instalação (F-Droid), pkg, storage, sshd/8022, adb root, Termux-API, proot-distro, wake lock, ngrok e erros comuns, com placar automático.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

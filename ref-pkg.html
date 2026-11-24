@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cola de pkg/apt no Termux — update, upgrade, install, search, list-installed, show, uninstall | Guia Termux</title>
+<meta name="description" content="Cola de consulta rápida do pkg (o apt do Termux): pkg update, pkg upgrade, pkg install, pkg search, pkg list-installed, pkg show e pkg uninstall/remove — tabela de referência com a saída real de cada um na máquina ana@android (Pixel 7 Pro, Android 14), anatomia do comando, a lista dos pacotes válidos do simulador, os erros comuns (Unable to locate package) e missões para pratiquer no terminal simulado.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Cola de <span class="hl">pkg / apt</span> — instalar programas no celular</h1>
+
+<p class="intro">O <code>pkg</code> é o <strong>gerenciador de pacotes do Termux</strong> — um apt modificado que baixa programas já compilados para Android do repositório <code>packages.termux.dev</code> e instala em <code>$PREFIX</code> (<code>/data/data/com.termux/files/usr</code>). É com ele que o celular vira servidor: python, git, nmap, postgresql, nginx… Nesta cola estão os subcomandos que você vai usar <strong>todo dia</strong>, com a saída real de cada um na máquina da Ana.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A regra de ouro: <code>pkg update</code> <strong>antes</strong> de qualquer instalação, sempre.</li>
+  <li>Os 7 subcomandos: <code>update</code>, <code>upgrade</code>, <code>install</code>, <code>search</code>, <code>list-installed</code>, <code>show</code>, <code>uninstall</code>/<code>remove</code>.</li>
+  <li><code>pkg</code> e <code>apt</code> são sinônimos no Termux — dá para usar qualquer um.</li>
+  <li>O erro <code>Unable to locate package X</code>: nome errado ou lista de pacotes desatualizada.</li>
+  <li>Quais pacotes o simulador conhece (python, nodejs, openssh, vim, nmap, termux-api, ngrok…).</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>O que é o pkg, por baixo do capô</h2>
+<p>Num Linux de PC você usa <code>apt</code> e instala em <code>/usr/bin</code>. No Termux não existe permissão para escrever em <code>/usr</code> (o Android tranca o sistema), então o Termux criou o <strong>$PREFIX</strong>: um diretório privado do app, <code>/data/data/com.termux/files/usr</code>, que funciona como se fosse a raiz <code>/</code>. Quando você instala o <code>python</code>, o binário vai para <code>$PREFIX/bin/python</code> — e o <code>$PREFIX/bin</code> já está no <code>PATH</code>, por isso o comando funciona na hora.</p>
+<pre class="term" data-host="android">$ pwd
+/data/data/com.termux/files/home
+$ echo $PREFIX
+/data/data/com.termux/files/usr
+$ ls
+backup.sh  storage  .bashrc  .termux  projetos</pre>
+<p>O repositório oficial é o <strong>termux-main stable</strong> (você vê ele na saída do <code>pkg update</code>), mantido pela comunidade em <code>packages.termux.dev</code> — os pacotes são compilados especialmente para rodar no Android, com patches quando preciso.</p>
+
+<hr>
+
+<h2>Anatomia do comando de instalação</h2>
+<dl class="anatomy">
+  <dt>pkg install</dt><dd>o binário pkg com o subcomando install</dd>
+  <dt>python</dt><dd>o nome exato do pacote no repositório (sensível a maiúsculas)</dd>
+  <dt>git nmap</dt><dd>dá para instalar vários de uma vez, separados por espaço</dd>
+</dl>
+<pre class="term" data-host="android">$ pkg install python
+The following NEW packages will be installed:
+  python
+0 upgraded, 1 newly installed, 0 to remove.
+Setting up python (3.11.9-2) ...
+python instalado ✓
+$ python --version
+Python 3.11.9</pre>
+
+<hr>
+
+<h2>Tabela de consulta rápida — os subcomandos</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando</th><th>Para que serve</th><th>Saída real (ana@android)</th></tr>
+<tr><td><code>pkg update</code></td><td>Baixa a lista atualizada de pacotes do repositório (rode sempre antes de instalar)</td><td><code>Get:1 https://packages.termux.dev/apt/termux-main stable InRelease</code> … <code>Reading package lists... Done</code></td></tr>
+<tr><td><code>pkg upgrade</code></td><td>Atualiza todos os pacotes já instalados para a versão nova</td><td><code>Reading package lists... Done</code> / <code>0 packages upgraded, 0 newly installed.</code></td></tr>
+<tr><td><code>pkg install NOME</code></td><td>Instala um pacote (vários se separar por espaço)</td><td><code>Setting up git (2.44.0) ...</code> → <code>git instalado ✓</code></td></tr>
+<tr><td><code>pkg search termo</code></td><td>Procura pacotes cujo nome contém o termo</td><td><code>pkg search vim</code> → <code>vim/stable 9.1.0 vim</code></td></tr>
+<tr><td><code>pkg list-installed</code></td><td>Lista os pacotes instalados com a versão</td><td>linhas terminando em <code>[installed]</code> (python, nodejs, openssh, vim…)</td></tr>
+<tr><td><code>pkg show NOME</code></td><td>Mostra detalhes de um pacote (versão, mantenedor, descrição)</td><td><code>Package: git</code> / <code>Version: 2.44.0</code> / <code>Maintainer: Termux</code></td></tr>
+<tr><td><code>pkg uninstall NOME</code> (ou <code>remove</code>)</td><td>Remove um pacote instalado</td><td><code>Removing vim ...</code> → <code>vim removido.</code></td></tr>
+<tr><td><code>pkg install &lt;desconhecido&gt;</code></td><td>Nome que não existe no repositório → <strong>erro</strong></td><td><code>Unable to locate package X</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>O fluxo do dia a dia</h2>
+<p>Depois de instalar o Termux (pela <strong>F-Droid</strong> — veja <a href="instalar.html">instalar certo</a>), a rotina da Ana é sempre a mesma: atualizar a lista, instalar o que precisa, conferir se instalou:</p>
+<pre class="term" data-host="android">$ pkg update
+Get:1 https://packages.termux.dev/apt/termux-main stable InRelease
+Reading package lists... Done
+Building dependency tree... Done
+$ pkg install git nmap
+The following NEW packages will be installed:
+  git  nmap
+0 upgraded, 2 newly installed, 0 to remove.
+Setting up git (2.44.0) ...
+git instalado ✓
+Setting up nmap (7.94) ...
+nmap instalado ✓
+$ pkg list-installed
+python/stable 3.11.9-2 [installed]
+nodejs/stable 20.11.1 [installed]
+openssh/stable 9.6p1 [installed]
+vim/stable 9.1.0 [installed]
+nano/stable 7.2 [installed]
+sqlite/stable 3.45.1 [installed]
+curl/stable 8.6.0 [installed]
+git/stable 2.44.0 [installed]</pre>
+
+<hr>
+
+<h2>Procurar antes de instalar: search e show</h2>
+<p>Esqueceu o nome exato? O <code>pkg search</code> lista os pacotes que casam com o termo e o <code>pkg show</code> traz a ficha técnica antes de instalar:</p>
+<pre class="term" data-host="android">$ pkg search vim
+vim/stable 9.1.0 vim
+$ pkg search ng
+ngrok/stable 3.12.1 ngrok
+$ pkg show git
+Package: git
+Version: 2.44.0
+Maintainer: Termux
+Description: pacote do repositório Termux (simulado)
+$ pkg search abacate
+No matches found for abacate</pre>
+<p>Repare no <code>No matches found for abacate</code>: quando o <code>search</code> não acha nada, o <code>install</code> também não vai achar — e aí vem o erro clássico:</p>
+<pre class="term" data-host="android">$ pkg install abacate
+Unable to locate package abacate</pre>
+
+<div class="warn"><strong>Unable to locate package X — as duas causas:</strong> (1) o nome está errado (confira com <code>pkg search</code> — às vezes é <code>nodejs</code>, não <code>node</code>; <code>openssh</code>, não <code>ssh</code>); (2) a lista de pacotes está velha — rode <code>pkg update</code> primeiro. Se mesmo assim não achar, o pacote pode não existir para Termux (muitos programas de PC não têm build para Android).</div>
+
+<hr>
+
+<h2>Atualizar e remover: upgrade e uninstall</h2>
+<pre class="term" data-host="android">$ pkg upgrade
+Reading package lists... Done
+0 packages upgraded, 0 newly installed.
+$ pkg uninstall vim
+Removing vim ...
+vim removido.
+$ pkg install vim
+Setting up vim (9.1.0) ...
+vim instalado ✓
+$ vim notas.txt
+(simulado) editor vim aberto — :q para sair 😄</pre>
+<p>O <code>pkg upgrade</code> é o "manter o celular atualizado": depois de um <code>pkg update</code>, ele troca os pacotes instalados pelas versões novas do repositório. O <code>pkg uninstall</code> (ou <code>pkg remove</code>, sinônimo) desinstala — útil quando um pacote quebra outro ou você não usa mais.</p>
+
+<div class="warn"><strong>Não use <code>apt install</code> às cegas no Termux real:</strong> o <code>apt</code> existe como apelido do <code>pkg</code>, mas instalar pacotes do repositório errado (ex.: o repositório do sistema do Android) quebra o ambiente. Prefira sempre <code>pkg</code> e o repositório <code>packages.termux.dev</code>.</div>
+
+<hr>
+
+<h2>Quais pacotes o simulador conhece</h2>
+<p>No terminal simulado (<code>ana@android</code>) estes são os pacotes instaláveis — os mesmos que rodam de verdade no Termux:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Pacote</th><th>Versão (simulada)</th><th>Para que serve</th></tr>
+<tr><td><code>python</code></td><td>3.11.9-2</td><td>Linguagem + <code>python -m http.server</code></td></tr>
+<tr><td><code>nodejs</code></td><td>20.11.1</td><td>Node.js (<code>node --version</code> → <code>v20.11.1</code>)</td></tr>
+<tr><td><code>openssh</code></td><td>9.6p1</td><td>Cliente/servidor SSH (<code>sshd</code>, <code>ssh-keygen</code>)</td></tr>
+<tr><td><code>vim</code> / <code>nano</code></td><td>9.1.0 / 7.2</td><td>Editores de texto no terminal</td></tr>
+<tr><td><code>sqlite</code></td><td>3.45.1</td><td>Banco SQLite (<code>sqlite3 meu.db "select 1;"</code>)</td></tr>
+<tr><td><code>curl</code> / <code>git</code></td><td>8.6.0 / 2.44.0</td><td>Baixar da internet / versionar código</td></tr>
+<tr><td><code>nmap</code></td><td>7.94</td><td>Scanner de rede (<code>nmap localhost</code>)</td></tr>
+<tr><td><code>proot</code></td><td>5.3.0</td><td>Base do <code>proot-distro</code> (Linux dentro do Linux)</td></tr>
+<tr><td><code>termux-api</code></td><td>0.50.1</td><td>Os comandos <code>termux-*</code> da <a href="ref-termux.html">cola anterior</a></td></tr>
+<tr><td><code>postgresql</code> / <code>nginx</code></td><td>16.2 / 1.25.4</td><td>Banco e servidor web no celular</td></tr>
+<tr><td><code>ngrok</code></td><td>3.12.1</td><td>Túnel público para o servidor local</td></tr>
+<tr><td><code>htop</code> / <code>tmux</code> / <code>rsync</code></td><td>3.3.0 / 3.4 / 3.2.7</td><td>Monitor, multiplexador e sincronização com o PC</td></tr>
+<tr><td><code>aircrack-ng</code></td><td>1.7</td><td>Auditoria de Wi-Fi (use só na sua rede!)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Pacotes essenciais, por objetivo</h2>
+<p>Não dá para decorar tudo — decore o <strong>objetivo</strong> e ache o pacote com <code>pkg search</code>. Estes são os atalhos que a Ana mais usa:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Quero…</th><th>Instalo</th><th>Comando que vem junto</th></tr>
+<tr><td>Servidor web rápido</td><td><code>pkg install python</code></td><td><code>python -m http.server 8080</code></td></tr>
+<tr><td>Acessar o celular pelo PC (SSH)</td><td><code>pkg install openssh</code></td><td><code>sshd</code> → porta 8022</td></tr>
+<tr><td>Clonar repositórios</td><td><code>pkg install git</code></td><td><code>git clone …</code></td></tr>
+<tr><td>Editar arquivo no terminal</td><td><code>pkg install vim</code> ou <code>nano</code></td><td><code>vim notas.txt</code></td></tr>
+<tr><td>Banco de dados local</td><td><code>pkg install sqlite</code></td><td><code>sqlite3 meu.db "select 1;"</code></td></tr>
+<tr><td>Banco "de verdade"</td><td><code>pkg install postgresql</code></td><td><code>psql -U postgres</code></td></tr>
+<tr><td>Controlar o celular (bateria, SMS, GPS, câmera)</td><td><code>pkg install termux-api</code></td><td><code>termux-battery-status</code>, <code>termux-toast</code>…</td></tr>
+<tr><td>Servidor web profissional</td><td><code>pkg install nginx</code></td><td><code>nginx</code></td></tr>
+<tr><td>Expor o celular na internet</td><td><code>pkg install ngrok</code></td><td><code>ngrok http 8080</code></td></tr>
+<tr><td>Testar rede (só a sua!)</td><td><code>pkg install nmap</code></td><td><code>nmap localhost</code></td></tr>
+<tr><td>Linux dentro do Linux</td><td><code>pkg install proot</code> + <code>proot-distro</code></td><td><code>proot-distro login ubuntu</code></td></tr>
+<tr><td>Sincronizar com o PC</td><td><code>pkg install rsync</code> + <code>openssh</code></td><td><code>rsync …</code></td></tr>
+<tr><td>Ver procesos e memória</td><td><code>pkg install htop</code></td><td><code>htop</code> → <code>MEM 3.1/8 GB</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Pratique no terminal simulado</h2>
+
+<div class="try" data-goal="git instalado ✓" data-solucao="pkg install git">
+<p class="try-task"><strong>Missão 1 — instalar:</strong> rode <code>pkg update</code> e depois <code>pkg install git</code>. A última linha deve ser <code>git instalado ✓</code>.</p>
+</div>
+
+<div class="try" data-goal="Unable to locate package" data-solucao="pkg install abacate">
+<p class="try-task"><strong>Missão 2 — provoquer o erro:</strong> tente instalar um pacote que não existe (<code>pkg install abacate</code>) e veja o <code>Unable to locate package abacate</code>. Depois rode <code>pkg search vim</code> e <code>pkg list-installed</code>.</p>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>pkg</code> = apt do Termux; instala em <code>$PREFIX</code> (<code>/data/data/com.termux/files/usr</code>), não em <code>/usr</code>.</li>
+  <li>Fluxo sagrado: <code>pkg update</code> → <code>pkg install …</code> → <code>pkg list-installed</code> para conferir.</li>
+  <li><code>pkg search termo</code> procura; <code>pkg show NOME</code> mostra detalhes; <code>pkg upgrade</code> atualiza tudo; <code>pkg uninstall NOME</code> remove.</li>
+  <li><code>pkg</code> e <code>apt</code> são sinônimos no Termux.</li>
+  <li>Erro <code>Unable to locate package X</code> = nome errado ou falta <code>pkg update</code> — cheque com <code>pkg search</code>.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="ref-adb.html">Cola de adb</a> — devices, root, shell, logcat e install: como falar com o Pixel 7 Pro rootado da Ana pelo terminal.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

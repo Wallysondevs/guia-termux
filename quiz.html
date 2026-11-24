@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quiz de Termux — 10 perguntas de múltipla escolha com placar | Guia Termux</title>
+<meta name="description" content="Quiz final do Guia Termux com 10 perguntas de múltipla escolha sobre instalação correta (F-Droid, não a Play Store), pkg update/install/search e Unable to locate package, termux-setup-storage e ~/storage, sshd na porta 8022 (ssh ana@192.168.1.42 -p 8022), adb root no Pixel 7 Pro rootado, Termux-API (termux-battery-status, termux-toast), proot-distro (Ubuntu sem root real), termux-wake-lock, ngrok (túnel público) e erros comuns (Permission denied, command not found). Acerte e veja o placar subir — com gabarito comentado e links para as aulas de cada tema.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">Quiz</span> final de Termux</h1>
+
+<p class="intro">Terminou o guia? Hora de <strong>testar o que ficou na cabeça</strong>. São 10 perguntas de múltipla escolha — clique numa opção em cada pergunta e o gabarito aparece na hora (verde = certa, vermelho = errada). Seu placar está logo abaixo e atualiza sozinho a cada acerto.</p>
+
+<div class="note">
+<strong>Você vai testar</strong>
+<ul>
+  <li>Instalação correta: de onde baixar o Termux e o Termux:API.</li>
+  <li>Dia a dia: <code>pkg</code> (update/install/search), <code>termux-setup-storage</code> e <code>~/storage</code>.</li>
+  <li>Celular como servidor: <code>sshd</code> na porta 8022 e <code>adb root</code> no Pixel rootado.</li>
+  <li>Termux-API, proot-distro, wake lock, ngrok e os erros comuns (<code>Permission denied</code>, <code>Unable to locate package</code>, <code>command not found</code>).</li>
+</ul>
+</div>
+
+<p id="placar">0 de 10</p>
+
+<div class="warn"><strong>Como funciona:</strong> cada pergunta vale 1 ponto e você pode trocar de resposta quantas vezes quiser — só a última marcada conta para o placar (mas tente acertar de primeira!). Se errar alguma, anote o número: os textos entre as partes linkam a aula certa para revisar.</div>
+
+<hr>
+
+<h2>Parte 1 — instalação, pkg e storage</h2>
+<p>O começo de tudo. Aulas de revisão: <a href="instalar.html">instalar certo</a>, <a href="pkg-apt.html">pkg e apt</a>, <a href="storage.html">termux-setup-storage</a> e <a href="ref-pkg.html">cola de pkg</a>.</p>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">1. De onde você deve instalar o Termux (e o app Termux:API) para ter a versão correta e atualizada?</p>
+<label><input type="radio" name="q1"> Pela Google Play Store, que é mais cômodo.</label>
+<label><input type="radio" name="q1"> Pela <strong>F-Droid</strong> (fdroid.org) — a Play Store tem uma versão desatualizada do Termux que quebra em Android novos.</label>
+<label><input type="radio" name="q1"> Baixando o APK de um site aleatório de apps.</label>
+<label><input type="radio" name="q1"> Pelo próprio <code>pkg install termux</code> dentro do Termux.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">2. Qual comando você roda <strong>antes de instalar qualquer pacote</strong> — e o que fazer se o <code>pkg install X</code> responder <code>Unable to locate package X</code>?</p>
+<label><input type="radio" name="q2"> Nada — o <code>pkg install</code> já baixa a lista sozinha; o erro significa que o app é pago.</label>
+<label><input type="radio" name="q2"> <code>pkg upgrade</code> uma vez por mês; o erro significa que o celular está sem internet.</label>
+<label><input type="radio" name="q2"> <code>pkg update</code> (atualiza a lista do repositório) e, se o erro persistir, procurar o nome certo com <code>pkg search termo</code> — no Termux o pacote de Node chama-se <code>nodejs</code>, não <code>node</code>.</label>
+<label><input type="radio" name="q2"> <code>apt-get update</code> no repositório do Android do sistema.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">3. Você rodou <code>ls ~/storage</code> e tomó <code>Permission denied</code>. O que faltou?</p>
+<label><input type="radio" name="q3"> Instalar o pacote <code>storage</code> com <code>pkg install storage</code>.</label>
+<label><input type="radio" name="q3"> Root no celular (<code>su</code>) para ler qualquer pasta.</label>
+<label><input type="radio" name="q3"> Rodar <code>chmod 777 ~/storage</code>.</label>
+<label><input type="radio" name="q3"> Rodar <code>termux-setup-storage</code> e <strong>aceitar a caixa de permissão</strong> que o Android mostra — só então <code>~/storage</code> lista <code>dcim downloads movies music pictures shared</code>.</label>
+</div>
+
+<hr>
+
+<h2>Parte 2 — celular como servidor: sshd e adb</h2>
+<p>Transformar o celular em servidor. Aulas: <a href="sshd.html">sshd no Termux</a>, <a href="adb.html">adb com root</a> e <a href="ref-adb.html">cola de adb</a>.</p>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. No Termux, em que porta o <code>sshd</code> atende por padrão — e como o PC da Ana conecta no celular dela?</p>
+<label><input type="radio" name="q4"> Porta 22, com <code>ssh ana@192.168.1.42</code>.</label>
+<label><input type="radio" name="q4"> Porta <strong>8022</strong>, com <code>ssh ana@192.168.1.42 -p 8022</code> (a 22 exigiria root no Android).</label>
+<label><input type="radio" name="q4"> Porta 8080, com <code>ssh ana@192.168.1.42 -p 8080</code>.</label>
+<label><input type="radio" name="q4"> O sshd do Termux não aceita conexão de fora, só local.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. A Ana tem um Pixel 7 Pro <strong>rootado</strong> ligado por adb. O que <code>adb root</code> followed de <code>adb shell whoami</code> imprime?</p>
+<label><input type="radio" name="q5"> <code>adbd cannot run as root in production builds</code> e <code>shell</code> — root é impossível via adb.</label>
+<label><input type="radio" name="q5"> <code>u0_a231</code> — o mesmo usuário do app Termux.</label>
+<label><input type="radio" name="q5"> <code>adbd is already running as root ✓</code> e depois <code>root</code> — num aparelho rootado o adb vira superusuário.</label>
+<label><input type="radio" name="q5"> <code>daemon not running</code> — precisa ligar a depuração USB primeiro.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. O PC deu <code>ssh: connect to host 192.168.1.42 port 8022: Connection refused</code>. Qual é a primeira coisa para checar <strong>no celular</strong>?</p>
+<label><input type="radio" name="q6"> Se o <code>sshd</code> está rodando no Termux (rode <code>sshd</code>) — ele não inicia sozinho — e se o IP atual (via <code>ifconfig</code>) ainda é <code>192.168.1.42</code>.</label>
+<label><input type="radio" name="q6"> Se o cabo USB está conectado no PC.</label>
+<label><input type="radio" name="q6"> Se o ngrok está aberto na 8022.</label>
+<label><input type="radio" name="q6"> Se o PC está rootado.</label>
+</div>
+
+<hr>
+
+<h2>Parte 3 — Termux-API, proot, wake lock, ngrok e erros</h2>
+<p>O resto do arsenal. Aulas: <a href="termux-api.html">Termux-API</a>, <a href="proot-distro.html">proot-distro</a>, <a href="wake-lock.html">wake lock</a>, <a href="rede-no-celular.html">ngrok</a>, <a href="ref-erros.html">cola de erros</a> e <a href="problemas.html">problemas</a>.</p>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">7. Para os comandos <code>termux-battery-status</code>, <code>termux-toast</code> e <code>termux-sms-list</code> funcionarem, o que é <strong>imprescindível</strong> além do pacote?</p>
+<label><input type="radio" name="q7"> Root no celular — a Termux-API só funciona com <code>su</code>.</label>
+<label><input type="radio" name="q7"> <code>pkg install termux-api</code> <strong>e</strong> o app <strong>Termux:API</strong> (F-Droid) instalado com as permissões (SMS, bateria, etc.) concedidas no Android.</label>
+<label><input type="radio" name="q7"> Abrir a porta 8022 no roteador.</label>
+<label><input type="radio" name="q7"> Nada — os comandos <code>termux-*</code> vêm de fábrica no Termux.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">8. O que o <code>proot-distro login ubuntu</code> cria dentro do Termux?</p>
+<label><input type="radio" name="q8"> Um Ubuntu com <strong>root de verdade</strong> no Android (equivalente a rootar o celular).</label>
+<label><input type="radio" name="q8"> Uma máquina virtual com KVM e placa de vídeo própria.</label>
+<label><input type="radio" name="q8"> Um Ubuntu completo (com apt próprio) rodando via <strong>proot</strong> — prompt <code>root@localhost:~#</code>, mas <strong>sem root real</strong> no Android; ideal para rodar programas de PC sem riscos.</label>
+<label><input type="radio" name="q8"> Um container Docker dentro do celular.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">9. Para que serve o <code>termux-wake-lock</code> — e qual o cuidado essencial?</p>
+<label><input type="radio" name="q9"> Desligar a tela do celular remotamente.</label>
+<label><input type="radio" name="q9"> Acelerar o carregamento da bateria.</label>
+<label><input type="radio" name="q9"> Reduzir o consumo de dados no Wi-Fi.</label>
+<label><input type="radio" name="q9"> <strong>Impedir que a tela apague</strong> enquanto um script roda (servidor, backup) — e sempre liberar com <code>termux-wake-unlock</code> depois, senão a bateria drena em horas.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">10. A Ana rodou <code>python -m http.server 8080</code> no Termux e depois <code>ngrok http 8080</code>. O que o ngrok fez?</p>
+<label><input type="radio" name="q10"> Abriu um <strong>túnel público HTTPS</strong> (<code>https://termux-ana-7f3k.ngrok-free.app</code>) apontando para o servidor local do celular — o site no Termux ficou acessível de qualquer lugar da internet.</label>
+<label><input type="radio" name="q10"> Instalou um antivírus no servidor da porta 8080.</label>
+<label><input type="radio" name="q10"> Criou um backup automático do site na nuvem.</label>
+<label><input type="radio" name="q10"> Trocou o IP do celular para um fixo.</label>
+</div>
+
+<hr>
+
+<h2>Mapa de revisão: pergunta → aula</h2>
+<p>Se travou em alguma, não releia o guia inteiro — vá direto na página do tema:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Pergunta</th><th>Tema</th><th>Revisão</th></tr>
+<tr><td>1</td><td>Instalação pela F-Droid</td><td><a href="instalar.html">instalar certo</a> · <a href="introducao.html">introdução</a></td></tr>
+<tr><td>2</td><td>pkg update / search / Unable to locate package</td><td><a href="ref-pkg.html">cola de pkg</a> · <a href="pkg-apt.html">pkg e apt</a></td></tr>
+<tr><td>3</td><td>termux-setup-storage e Permission denied</td><td><a href="storage.html">storage</a> · <a href="ref-erros.html">cola de erros</a></td></tr>
+<tr><td>4</td><td>sshd na porta 8022</td><td><a href="sshd.html">sshd no Termux</a></td></tr>
+<tr><td>5</td><td>adb root no Pixel 7 Pro rootado</td><td><a href="ref-adb.html">cola de adb</a> · <a href="adb.html">adb</a> · <a href="root-su.html">root</a></td></tr>
+<tr><td>6</td><td>Connection refused → sshd parado / IP errado</td><td><a href="problemas.html">problemas comuns</a></td></tr>
+<tr><td>7</td><td>Termux-API: pacote + app com permissões</td><td><a href="ref-termux.html">cola termux-*</a> · <a href="termux-api.html">termux-api</a></td></tr>
+<tr><td>8</td><td>proot-distro: Ubuntu sem root real</td><td><a href="proot-distro.html">proot-distro</a></td></tr>
+<tr><td>9</td><td>wake lock segura a tela (e drena bateria)</td><td><a href="wake-lock.html">wake lock</a></td></tr>
+<tr><td>10</td><td>ngrok: túnel público para o servidor local</td><td><a href="rede-no-celular.html">rede no celular</a> · <a href="projeto-site-externo.html">site externo</a></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Como foi?</h2>
+<p>Olhe o placar lá no topo. Acertou tudo? Ótimo — volte para a <a href="ref-termux.html">cola de comandos termux-*</a> sempre que precisar no dia a dia. Errou alguma? Cada parte acima tem os links das aulas correspondentes — revise só o que travou, sem culpa: errar no quiz é de graça.</p>
+
+<div class="note">
+<strong>Quiz não é nota, é bússola:</strong> cada erro aqui é um conceito que ainda não assentou — e agora você sabe exatamente em qual página do guia ele mora.
+</div>
+
+<hr>
+
+<h2>Gabarito comentado</h2>
+<ol class="passo">
+  <li><strong>F-Droid</strong> — a Play Store tem o Termux desatualizado; baixe de fdroid.org. <em>(aula: <a href="instalar.html">instalar certo</a>)</em></li>
+  <li><strong>pkg update + pkg search</strong> — lista nova e nome exato (<code>nodejs</code>, <code>openssh</code>…). <em>(<a href="ref-pkg.html">ref-pkg</a>)</em></li>
+  <li><strong>termux-setup-storage + aceitar a permissão</strong> no Android → <code>~/storage</code> lista as pastas. <em>(<a href="storage.html">storage</a> / <a href="ref-erros.html">ref-erros</a>)</em></li>
+  <li><strong>Porta 8022</strong>: <code>ssh ana@192.168.1.42 -p 8022</code>. <em>(<a href="sshd.html">sshd</a>)</em></li>
+  <li><strong>adbd já como root</strong> no Pixel rootado; <code>adb shell whoami</code> → <code>root</code>. <em>(<a href="ref-adb.html">ref-adb</a>)</em></li>
+  <li><strong>sshd rodando + IP atual</strong> (ifconfig) — Connection refused quase sempre é sshd parado. <em>(<a href="problemas.html">problemas</a>)</em></li>
+  <li><strong>termux-api (pacote) + Termux:API (app com permissões)</strong>. <em>(<a href="termux-api.html">termux-api</a> / <a href="ref-termux.html">ref-termux</a>)</em></li>
+  <li><strong>Ubuntu via proot, sem root real</strong> no Android. <em>(<a href="proot-distro.html">proot-distro</a>)</em></li>
+  <li><strong>Wake lock segura a tela; unlock libera</strong> (senão drena bateria). <em>(<a href="wake-lock.html">wake lock</a>)</em></li>
+  <li><strong>ngrok = túnel público</strong> para o servidor local do celular. <em>(<a href="rede-no-celular.html">rede no celular</a>)</em></li>
+</ol>
+
+<div class="tip"><strong>Terminou o guia!</strong> Volte ao <a href="index.html">início do Guia Termux</a> e escolha seu nível — ou releia as <a href="projetos.html">projetos práticos</a> e a seção de <a href="ref-termux.html">referência</a> com tudo o que você acabou de testar aqui.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

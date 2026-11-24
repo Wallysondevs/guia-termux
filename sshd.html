@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sshd no Termux: acessar o celular pelo PC via SSH (porta 8022) | Guia Termux</title>
+<meta name="description" content="Como transformar o celular num servidor SSH: pkg install openssh, trocar a senha com passwd, gerar par de chaves com ssh-keygen, ligar o sshd na porta 8022 (apps não podem usar a 22 sem root) e conectar do PC com ssh ana@192.168.1.42 -p 8022. Veja o ifconfig para pegar o IP do celular na Wi-Fi, o nmap localhost mostrando a 8022 aberta e pratique sshd e ssh-keygen no terminal simulado.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">sshd</span> no Termux: o celular vira servidor SSH</h1>
+
+<p class="intro">Agora a brincadeira esquenta: com o <code>sshd</code> rodando, o celular da Ana vira um <strong>servidor SSH</strong> — e você acessa o terminal dele <strong>do PC</strong>, pelo Wi-Fi, como se fosse uma máquina remota. Nesta aula: instalar o <code>openssh</code>, trocar a senha (<code>passwd</code>), gerar um par de chaves (<code>ssh-keygen</code>), ligar o servidor na <strong>porta 8022</strong> (app comum não abre a 22) e conectar com <code>ssh ana@192.168.1.42 -p 8022</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Instalar o servidor: <code>pkg install openssh</code>.</li>
+  <li>Por que a porta é <strong>8022</strong> e não 22 (portas abaixo de 1024 exigem root no Android).</li>
+  <li><code>passwd</code> — trocar a senha do usuário do Termux (obrigatório antes de entrar por SSH).</li>
+  <li><code>ssh-keygen</code> — gerar par de chaves em <code>~/.ssh/id_rsa</code> (login sem senha depois).</li>
+  <li><code>sshd</code> — ligar o servidor; a saída mostra o comando exato para conectar do PC.</li>
+  <li>Descobrir o IP do celular na Wi-Fi com <code>ifconfig</code> (<code>inet 192.168.1.42</code>) e confirmar a porta aberta com <code>nmap localhost</code>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>O plano: PC → Wi-Fi → celular</h2>
+<p>A topologia é simples: o PC e o celular na <strong>mesma rede Wi-Fi</strong>. O celular roda o <code>sshd</code> (servidor SSH) na porta 8022; o PC roda o cliente <code>ssh</code> e entra no terminal do celular como se fosse remoto:</p>
+
+<pre class="term">$ ifconfig            « no Termux:descobre o IP do celular na Wi-Fi
+wlan0: flags=4163&lt;UP,BROADCAST,RUNNING,MULTICAST&gt;
+        inet 192.168.1.42  netmask 255.255.255.0
+        ether dc:a6:32:11:22:33</pre>
+
+<pre class="term" data-user="ana" data-host="notebook">$ ssh ana@192.168.1.42 -p 8022    « no PC: entra no celular
+ana@android:~$ whoami
+u0_a231 (ana)</pre>
+
+<p>Repare: depois de conectar, o prompt muda para <code>ana@android:~$</code> — você está <strong>dentro do celular</strong>, mas digitando no teclado do PC.</p>
+
+<hr>
+
+<h2>Passo 1: instalar o openssh</h2>
+<pre class="term" data-host="android">$ pkg install openssh
+The following NEW packages will be installed:
+  openssh
+0 upgraded, 1 newly installed, 0 to remove.
+Setting up openssh (9.6p1) ...
+openssh instalado ✓</pre>
+
+<p>O pacote <code>openssh</code> traz o cliente <code>ssh</code> <em>e</em> o servidor <code>sshd</code>, além do <code>ssh-keygen</code> e do <code>scp</code>.</p>
+
+<hr>
+
+<h2>Passo 2: trocar a senha com passwd</h2>
+<p>Sem senha forte, qualquer um da mesma Wi-Fi entra no seu celular. Troque antes de ligar o servidor:</p>
+
+<pre class="term" data-host="android">$ passwd
+New password: ••••••••
+BAD PASSWORD: too short
+New password: ••••••••
+Senha alterada ✓ (simulado)</pre>
+
+<div class="warn"><strong>"BAD PASSWORD: too short" é o próprio Linux recusando</strong> — o Android/Termux avisa porque senha curta em SSH é porta aberta. Use frase longa com números e símbolos (ex.: <code>cafe-com-leite-2024!</code>). E nunca use a mesma senha do bloqueio do celular.</div>
+
+<hr>
+
+<h2>Passo 3: par de chaves com ssh-keygen</h2>
+<p>Chave assimétrica é mais segura que senha: você gera um par no celular (<code>~/.ssh/id_rsa</code> privada, <code>id_rsa.pub</code> pública) e copia a pública para o PC — aí o login é automático:</p>
+
+<div class="try" data-goal="identification has been saved" data-solucao="ssh-keygen">
+<p class="try-task"><strong>Missão:</strong> rode <code>ssh-keygen</code> no terminal. A saída deve conter <code>Your identification has been saved</code> — a chave privada ficou em <code>~/.ssh/id_rsa</code>.</p>
+</div>
+
+<pre class="term" data-host="android">$ ssh-keygen
+Gerando par de chaves RSA 4096...
+Your identification has been saved in /data/data/com.termux/files/home/.ssh/id_rsa.
+Fingerprint: SHA256:TermuxAna123</pre>
+
+<dl class="anatomy">
+  <dt>ssh-keygen</dt><dd>Gera o par de chaves (padrão RSA 4096).</dd>
+  <dt>~/.ssh/id_rsa</dt><dd>A chave <strong>privada</strong> — fica no celular, <strong>nunca compartilhe</strong>.</dd>
+  <dt>~/.ssh/id_rsa.pub</dt><dd>A chave <strong>pública</strong> — essa você copia para o PC (<code>ssh-copy-id</code> faz isso).</dd>
+</dl>
+
+<hr>
+
+<h2>Passo 4: ligar o sshd na porta 8022</h2>
+<p>Agora ligue o servidor:</p>
+
+<div class="try" data-goal="sshd rodando ✓" data-solucao="sshd">
+<p class="try-task"><strong>Missão:</strong> digite <code>sshd</code> e aperte <kbd>Enter</kbd>. A saída deve mostrar <code>sshd rodando ✓</code> e o comando para conectar do PC: <code>ssh ana@192.168.1.42 -p 8022</code>.</p>
+</div>
+
+<pre class="term" data-host="android">$ sshd
+Iniciando sshd na porta 8022...
+sshd rodando ✓ — conecte do PC com:
+  ssh ana@192.168.1.42 -p 8022</pre>
+
+<p>Por que <strong>8022</strong> e não 22? No Linux, só root pode abrir portas abaixo de 1024. Como o Termux roda como usuário comum (<code>u0_a231</code>), o projeto escolheu a 8022 como porta padrão do app — é a mesma lógica do <code>python -m http.server 8080</code>.</p>
+
+<div class="warn"><strong>Segurança básica de SSH num celular:</strong> (1) senha forte ou chave (nunca os dois desligados); (2) se não vai usar de fora de casa, desligue o <code>sshd</code> quando sair (<code>killall sshd</code>); (3) Wi-Fi público + SSH ligado = risco — prefira chave e, se puder, VPN. O nível 3 deste guia aprofunda em <a href="seguranca-termux.html">segurança</a>.</div>
+
+<hr>
+
+<h2>Do PC: conectar no celular</h2>
+<p>No notebook da Ana (Linux/macOS; no Windows use o PowerShell/WSL), basta:</p>
+
+<pre class="term" data-user="ana" data-host="notebook">$ ssh ana@192.168.1.42 -p 8022
+The authenticity of host '[192.168.1.42]:8022' can't be established...
+ana@android:~$ pwd
+/data/data/com.termux/files/home
+ana@android:~$ ls ~/storage
+dcim  downloads  movies  music  pictures  shared</pre>
+
+<dl class="anatomy">
+  <dt>ssh</dt><dd>O cliente de terminal remoto (secure shell).</dd>
+  <dt>ana@192.168.1.42</dt><dd>usuário no IP do celular (pegue com <code>ifconfig</code> no Termux — campo <code>inet</code> do <code>wlan0</code>).</dd>
+  <dt>-p 8022</dt><dd>A porta — obrigatória aqui, porque o padrão seria 22 e o Termux usa 8022.</dd>
+</dl>
+
+<p>Na primeira conexão, o PC pergunta se confia na "impressão digital" do servidor (<code>yes</code>) — é normal. Depois, você cai direto no prompt <code>ana@android:~$</code>.</p>
+
+<hr>
+
+<h2>Conferindo: ifconfig e nmap localhost</h2>
+<p>Dois comandos para confirmar que está tudo no ar:</p>
+
+<pre class="term" data-host="android">$ ifconfig
+wlan0: flags=4163&lt;UP,BROADCAST,RUNNING,MULTICAST&gt;
+        inet 192.168.1.42  netmask 255.255.255.0
+        ether dc:a6:32:11:22:33
+
+lo: inet 127.0.0.1
+$ nmap localhost
+Starting Nmap 7.94 (simulado)
+Host 192.168.1.42 is up.
+PORT     STATE SERVICE
+8022/tcp open  ssh
+8080/tcp open  http
+Nmap done: 1 IP address scanned ✓</pre>
+
+<p>O <code>nmap localhost</code> mostra a porta <code>8022/tcp open ssh</code> — prova de que o servidor está escutando. (O <code>8080</code> aparece porque a Ana deixou um servidor web rodando — próxima aula.)</p>
+
+<hr>
+
+<h2>Copiar arquivos entre PC e celular: scp</h2>
+<p>Com o SSH no ar, o <code>scp</code> leva arquivos de um lado para o outro — perfeito para mandar as fotos do celular para o PC:</p>
+
+<pre class="term" data-user="ana" data-host="notebook">$ scp -P 8022 ana@192.168.1.42:~/storage/shared/DCIM/Camera/IMG_20240501.jpg .
+IMG_20240501.jpg          100%  312KB   2.1MB/s
+$ scp -P 8022 ~/meu-site.zip ana@192.168.1.42:~/projetos/
+meu-site.zip              100%   1.2MB   3.4MB/s</pre>
+
+<div class="warn"><strong>Maiúsculo matters:</strong> no <code>scp</code> a porta é <code>-P</code> (maiúsculo), mas no <code>ssh</code> é <code>-p</code> (minúsculo). Clássico.</div>
+
+<hr>
+
+<h2>Mais de uma sessão de cada vez: tmux</h2>
+<p>Conectou pelo PC, desligou a tela do notebook e quando voltou a conexão caiu? O <code>tmux</code> resolve: ele mantém a sessão viva no celular, e você reconecta nela depois:</p>
+
+<pre class="term" data-host="android">$ pkg install tmux
+tmux instalado ✓
+$ tmux new -s ana
+« dentro do tmux: tudo que rodar aqui continua vivo se a conexão cair
+$ tmux ls
+ana: 1 windows (created ...)
+« no PC, depois de reconectar:
+$ ssh ana@192.168.1.42 -p 8022
+ana@android:~$ tmux attach -t ana
+« voltou exatamente onde parou</pre>
+
+<hr>
+
+<h2>Parando o sshd e o aviso de "host mudou"</h2>
+<pre class="term" data-host="android">$ killall sshd     « desliga o servidor quando não precisar mais
+$ sshd              « liga de novo quando quiser</pre>
+
+<p>Se você reinstalar o Termux (ou trocar de celular), o PC reclama na próxima conexão:</p>
+
+<pre class="term" data-user="ana" data-host="notebook">@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!</pre>
+
+<div class="warn"><strong>Esse aviso é sério:</strong> o PC guarda a "impressão digital" de cada servidor em <code>~/.ssh/known_hosts</code>. Se ela mudou, ou o servidor é outro (Termux reinstalado = chave nova), ou alguém está se passando pelo seu celular na rede (ataque "man in the middle"). Para o caso legítimo (reinstalou), apague a linha antiga: <code>ssh-keygen -R [192.168.1.42]:8022</code> — e só faça isso se tiver certeza de que é o seu aparelho.</div>
+
+<hr>
+
+<h2>Copiando a chave pública para o PC (login sem senha)</h2>
+<p>Depois do <code>ssh-keygen</code>, mande a chave pública para o PC uma vez — depois entra sem digitar senha:</p>
+
+<pre class="term" data-host="android">$ ssh-copy-id -p 8022 ana@192.168.1.42   « pedindo a senha uma última vez
+ana@android:~$ exit
+« pronto: da próxima vez entra direto com a chave</pre>
+
+<p>Resumo do fluxo de chaves: a <strong>privada</strong> (<code>~/.ssh/id_rsa</code>) fica no celular e nunca sai de lá; a <strong>pública</strong> (<code>id_rsa.pub</code>) vai para o PC. Quem tem a pública não consegue entrar — só a privada autentica.</p>
+
+<hr>
+
+<h2>Sem digitar IP toda hora: ~/.ssh/config no PC</h2>
+<p>Em vez de lembrar <code>ana@192.168.1.42 -p 8022</code>, configure um apelido no PC:</p>
+
+<pre class="file" data-file="~/.ssh/config (no notebook da Ana)">Host celular
+    HostName 192.168.1.42
+    Port 8022
+    User ana
+    IdentityFile ~/.ssh/id_ana</pre>
+
+<pre class="term" data-user="ana" data-host="notebook">$ ssh celular
+ana@android:~$ whoami
+u0_a231 (ana)
+« agora é só "ssh celular" — e o scp também entende o apelido:
+$ scp celular:~/storage/shared/DCIM/Camera/IMG_20240501.jpg .
+IMG_20240501.jpg   100%  312KB</pre>
+
+<hr>
+
+<h2>Sincronizando a pasta de projetos: rsync sobre SSH</h2>
+<p>Com o SSH no ar, o <code>rsync</code> mantém a pasta <code>~/projetos</code> igual no celular e no PC — só manda o que mudou:</p>
+
+<pre class="term" data-user="ana" data-host="notebook">$ rsync -avz --delete -e "ssh -p 8022" ~/projetos/ celular:~/projetos/
+sending incremental file list
+app.py
+meu-site/index.html
+sent 4.2K bytes  received 120 bytes
+« no celular, depois de rodar o servidor web:
+$ rsync -avz -e "ssh -p 8022" celular:~/projetos/ ~/projetos-espelho/</pre>
+
+<pre class="term" data-host="android">$ rsync -avz -e "ssh -p 8022" ~/projetos/ ana@192.168.1.10:~/projetos/
+sending incremental file list
+backup.tar.gz
+1.204.800 bytes  100%  2.34MB/s
+Sincronizado com o PC ✓</pre>
+
+<dl class="anatomy">
+  <dt>rsync -avz</dt><dd><code>-a</code> modo arquivo (preserva permissões), <code>-v</code> verboso, <code>-z</code> comprime na transferência.</dd>
+  <dt>-e "ssh -p 8022"</dt><dd>Diz ao rsync para transportar os dados por um túnel SSH na porta 8022.</dd>
+  <dt>--delete</dt><dd>Apaga no destino o que foi apagado na origem — espelha de verdade (cuidado com a direção da seta!).</dd>
+</dl>
+
+<hr>
+
+<h2>Endurecendo o sshd: chave sim, senha não</h2>
+<p>Depois do primeiro acesso, dá para desligar o login por senha no servidor — aí só entra quem tem a chave privada:</p>
+
+<pre class="term" data-host="android">$ nano $PREFIX/etc/ssh/sshd_config
+« dentro do arquivo, mude:
+PasswordAuthentication no
+PubkeyAuthentication yes
+$ killall sshd && sshd     « reinicia o servidor para valer a config
+sshd rodando ✓ — conecte do PC com:
+  ssh ana@192.168.1.42 -p 8022</pre>
+
+<div class="warn"><strong>Cuidado ao desligar a senha:</strong> se você ainda não copiou a chave pública para o PC (<code>ssh-copy-id</code>), você tranca a porta e perde o acesso. Ordem segura: (1) gere a chave no celular, (2) copie a pública para o PC, (3) teste <code>ssh ana@192.168.1.42 -p 8022</code> entrando <strong>sem digitar senha</strong>, (4) só então desligue <code>PasswordAuthentication</code> e reinicie o sshd. Se trancar, a saída é entrar de novo pelo <code>adb</code> (próxima aula) — e como reinstalar o Termux apaga a home, faça backup de <code>~/.ssh</code> antes de qualquer experimento.</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>pkg install openssh</code> traz cliente <code>ssh</code>, servidor <code>sshd</code>, <code>ssh-keygen</code> e <code>scp</code>.</li>
+  <li>Ordem certa: <code>passwd</code> (senha forte) → <code>ssh-keygen</code> (chaves em <code>~/.ssh/id_rsa</code>) → <code>sshd</code>.</li>
+  <li>O servidor liga na <strong>porta 8022</strong> (app comum não abre portas &lt; 1024) e a saída já mostra <code>ssh ana@192.168.1.42 -p 8022</code>.</li>
+  <li>O IP do celular vem do <code>ifconfig</code> (<code>inet 192.168.1.42</code> no <code>wlan0</code>); o <code>nmap localhost</code> confirma <code>8022/tcp open ssh</code>.</li>
+  <li>Do PC: <code>ssh ana@192.168.1.42 -p 8022</code>; para arquivos: <code>scp -P 8022 …</code> (P maiúsculo no scp!).</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="servidor-web.html">Servidor web no celular (python -m http.server)</a> — servir um site/sitezinho na porta 8080 e acessar de outro aparelho da mesma Wi-Fi.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

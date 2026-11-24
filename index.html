@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guia Termux — aprenda Termux do zero: terminal Linux no Android | Guia Termux</title>
+<meta name="description" content="Curso de Termux em português: terminal Linux completo no Android, pkg/apt, storage, SSH no celular, Termux-API, adb com root, proot-distro, automação e projetos — com terminal Termux simulado no navegador.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="hero">
+<h1>Guia Termux 📱</h1>
+<p>Aprenda <strong>Termux do zero</strong>: um terminal Linux completo dentro do Android — instale programas com <code>pkg</code>, acesse suas fotos, rode um servidor web e SSH no próprio celular, controle tudo pela <strong>Termux-API</strong> e até fale com um celular <strong>rootado via adb</strong> — praticando num terminal simulado <code>ana@android</code>.</p>
+<a class="btn btn-lg" href="introducao.html">Comece pelo Nível 1 &#10095;</a>
+</div>
+
+<div class="pager"></div>
+
+<h2>Experimente agora</h2>
+<p>A caixa abaixo é um <strong>Termux simulado</strong>: um Pixel 7 Pro com Android 14, Termux instalado e um dispositivo <strong>rootado</strong> visível via <code>adb devices</code>. Digite <code>pkg list-installed</code> e aperte <kbd>Enter</kbd>.</p>
+
+<div class="try" data-goal="installed" data-solucao="pkg list-installed">
+<p class="try-task"><strong>Missão:</strong> digite <code>pkg list-installed</code> e veja os pacotes. Depois tente <code>termux-battery-status</code>, <code>termux-setup-storage</code> e <code>adb devices</code>.</p>
+</div>
+
+<pre class="term">$ adb devices
+List of devices attached
+R5CT20ABCPIXEL	device product:blueline model:Pixel_7_Pro device:blueline
+
+Dispositivo rootado detectado ✓ (1 dispositivo)</pre>
+
+<hr>
+
+<h2>O que é este guia</h2>
+<p><strong>Termux é um emulador de terminal + ambiente Linux para Android</strong>: ele instala um shell bash real num diretório privado do app (<code>/data/data/com.termux/files</code>) e traz um gerenciador de pacotes próprio (<code>pkg</code>, baseado no apt do Debian) que compila os programas para rodar no celular.</p>
+<ul>
+  <li>Base: instalação correta (F-Droid), storage, <code>pkg</code>/<code>apt</code> e primeiros comandos;</li>
+  <li>Celular como servidor: <code>sshd</code>, servidor web, banco local e <code>adb</code> com root;</li>
+  <li>Termux-API: bateria, SMS, GPS, câmera, lanterna e notificações pelo terminal;</li>
+  <li>Avançado: root real, proot-distro (Ubuntu dentro do Termux), automação e projetos práticos.</li>
+</ul>
+
+<hr>
+
+<h2>Escolha sua trilha</h2>
+<div class="trilhas">
+  <div class="trilha n1">
+    <h3>Nível 1 · Iniciante</h3>
+    <p>Instalar certo, storage, pkg/apt e o celular como servidor (SSH, web, adb).</p>
+    <a class="btn" href="introducao.html">Começar &#10095;</a>
+  </div>
+  <div class="trilha n2">
+    <h3>Nível 2 · Intermediário</h3>
+    <p>Termux-API (câmera, SMS, GPS), automação com cron e proot-distro.</p>
+    <a class="btn" href="termux-api.html">Ver intermediário &#10095;</a>
+  </div>
+  <div class="trilha n3">
+    <h3>Nível 3 · Avançado</h3>
+    <p>Root no Android, segurança, túneis reversos e labs no próprio celular.</p>
+    <a class="btn" href="root-su.html">Ver avançado &#10095;</a>
+  </div>
+</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

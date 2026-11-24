@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glossário de Termux A–Z — Termux, pkg, proot, adb, root, wake lock, ngrok, sshd, Termux-API | Guia Termux</title>
+<meta name="description" content="Glossário do Guia Termux em ordem alfabética com definição em português claro e exemplo prático: adb, Android/SAF, app uid (u0_a231), bootstrap, crontab e termux-job-scheduler, F-Droid, ngrok, pkg/apt, $PREFIX, proot e proot-distro, root/su, sshd e porta 8022, Termux, Termux-API, termux-setup-storage e ~/storage, toast, wake lock, Wi-Fi adb — com uma tabela-resumo termo → comando e missão no terminal simulado ana@android.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">Glossário</span> de Termux, de A a Z</h1>
+
+<p class="intro">Todo guia de Termux usa os mesmos termos o tempo inteiro — e eles voltam em todo canto: no <code>pkg</code>, nos erros, nas aulas de root. Este glossário reúne os <strong>termos essenciais em ordem alfabética</strong>, com definição em português claro e o comando de exemplo na máquina da Ana (<code>ana@android</code>, Pixel 7 Pro com Android 14). Consulte sempre que um termo novo aparecer.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O ambiente: <strong>Termux</strong>, <strong>$PREFIX</strong>, <strong>bootstrap</strong>, app uid (<code>u0_a231</code>).</li>
+  <li>Pacotes: <strong>pkg/apt</strong>, repositório termux-main, F-Droid.</li>
+  <li>Controle do celular: <strong>Termux-API</strong>, <strong>termux-setup-storage</strong>, <strong>~/storage</strong>, SAF.</li>
+  <li>Root e acesso remoto: <strong>adb</strong>, <strong>root/su</strong>, <strong>sshd</strong> (porta 8022).</li>
+  <li>Linux dentro do Linux e rede: <strong>proot</strong>/<strong>proot-distro</strong>, <strong>ngrok</strong>, <strong>wake lock</strong>, crontab/<strong>termux-job-scheduler</strong>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>Os termos, de A a Z</h2>
+<dl class="glossario">
+
+  <dt><strong>adb (Android Debug Bridge)</strong></dt>
+  <dd>A ponte de depuração do Android: com ela você lista dispositivos (<code>adb devices</code>), abre shell no celular (<code>adb shell whoami</code>), lê logs (<code>adb logcat</code>), instala APKs (<code>adb install app.apk</code>) e, num aparelho rootado, vira root (<code>adb root</code>). No guia, o Pixel 7 Pro da Ana responde <code>R5CT20ABCPIXEL</code> e está rootado. Cola em <a href="ref-adb.html">ref-adb</a>.</dd>
+
+  <dt><strong>Android / SAF</strong></dt>
+  <dd>O sistema operacional do celular. O <strong>SAF</strong> (Storage Access Framework) é o mecanismo de permissão de pastas do Android 5+: cada app só enxerga os próprios arquivos até o usuário "aceitar" uma pasta na caixa de diálogo — é por isso que o <code>~/storage</code> precisa do <code>termux-setup-storage</code>.</dd>
+
+  <dt><strong>App uid — <code>u0_a231</code></strong></dt>
+  <dd>Cada app Android roda com um usuário Linux próprio: o Termux da Ana é o <code>u0_a231</code> (o comando <code>whoami</code> dentro do Termux imprime <code>u0_a231 (ana)</code>). O número depois do <code>u0_</code> é o "user id" do app — cada app instalado ganha um diferente. É por isso que o Termux não pode ler os arquivos de outros apps sem permissão.</dd>
+
+  <dt><strong>Bootstrap</strong></dt>
+  <dd>O "pacote inicial" que o Termux baixa na primeira execução (ou no <code>proot-distro install</code>): o conjunto mínimo de binários (<code>bash</code>, <code>coreutils</code>, <code>pkg</code>…) compilados para Android que permite o resto instalar. Sem bootstrap não existe Termux.</dd>
+
+  <dt><strong>crontab / termux-job-scheduler</strong></dt>
+  <dd>As duas formas de <strong>agendar tarefas</strong> no Termux: o <code>crontab -l</code> lista ("*/30 * * * * ~/backup.sh …") e o <code>termux-job-scheduler --script ~/backup.sh --period 300000</code> agenda pelo sistema do Android (sobrevive a reinícios do app). Aula <a href="termux-job-scheduler.html">termux-job-scheduler e crontab</a>.</dd>
+
+  <dt><strong>F-Droid</strong></dt>
+  <dd>A loja de apps <strong>open source</strong> recomendada para instalar o Termux e o Termux:API. A versão da Play Store está desatualizada (o Google Play restringe atualizações de apps que mexem em pacotes) — por isso a regra de ouro: <strong>instale pelo F-Droid</strong>. Aula <a href="instalar.html">instalar certo</a>.</dd>
+
+  <dt><strong>ngrok</strong></dt>
+  <dd>Serviço de <strong>túnel reverso</strong>: expõe um servidor local (ex.: <code>python -m http.server 8080</code> no celular) num endereço público HTTPS (<code>https://termux-ana-7f3k.ngrok-free.app</code>). Perfeito para mostrar um site rodando no Termux para alguém de fora. Aula <a href="rede-no-celular.html">Rede no celular</a> e projeto <a href="projeto-site-externo.html">site externo</a>.</dd>
+
+  <dt><strong>pkg / apt</strong></dt>
+  <dd>O <strong>gerenciador de pacotes do Termux</strong> (um apt adaptado): <code>pkg update</code>, <code>pkg install python</code>, <code>pkg search vim</code>, <code>pkg list-installed</code>, <code>pkg uninstall …</code>. <code>apt</code> funciona como sinônimo. Instala em <code>$PREFIX</code>, não em <code>/usr</code>. Cola em <a href="ref-pkg.html">ref-pkg</a>.</dd>
+
+  <dt><strong>$PREFIX</strong></dt>
+  <dd>A "raiz falsa" do Termux: <code>/data/data/com.termux/files/usr</code>. Como o app não pode escrever em <code>/usr</code> do Android, tudo é instalado embaixo do <code>$PREFIX</code> (<code>$PREFIX/bin</code> já está no <code>PATH</code>). No Termux real, <code>echo $PREFIX</code> mostra o caminho.</dd>
+
+  <dt><strong>proot / proot-distro</strong></dt>
+  <dd><strong>proot</strong> é a ferramenta que faz um Linux rodar dentro de outro <strong>sem root</strong> (só com chamadas de sistema "enganadas"). O <strong>proot-distro</strong> usa isso para instalar distros completas: <code>proot-distro list</code> mostra <code>ubuntu-24.04</code> e <code>proot-distro login ubuntu</code> entra num Ubuntu com apt próprio, prompt <code>root@localhost:~#</code> — mas sem root de verdade no Android. Aula <a href="proot-distro.html">proot-distro</a>.</dd>
+
+  <dt><strong>root / su</strong></dt>
+  <dd><strong>Root</strong> = o superusuário do sistema (uid 0), capaz de ler/escrever qualquer arquivo. No Android, rootar o aparelho (com Magisk, por exemplo) dá esse poder — e os riscos: apps maliciosos com acesso total, sistema que não boota mais se apagar arquivo errado. No Termux dá para "ser root" dentro do proot (sem perigo) ou via <code>adb root</code>/<code>su</code> num celular rootado (com perigo). Aula <a href="root-su.html">root no Android</a>.</dd>
+
+  <dt><strong>sshd (e a porta 8022)</strong></dt>
+  <dd>O <strong>servidor SSH</strong> do pacote <code>openssh</code>: com <code>sshd</code> rodando no Termux, o PC acessa o celular por <code>ssh ana@192.168.1.42 -p 8022</code>. A porta padrão no Termux é a <strong>8022</strong> (a 22 exigiria root). Se der <code>Connection refused</code>, o sshd não está no ar — veja <a href="ref-erros.html">cola de erros</a>. Aula <a href="sshd.html">sshd no Termux</a>.</dd>
+
+  <dt><strong>Termux</strong></dt>
+  <dd>O app que junta tudo: um <strong>emulador de terminal + ambiente Linux para Android</strong>. Instala um bash real em <code>/data/data/com.termux/files</code>, traz o <code>pkg</code> e pode controlar o celular pela Termux-API. Home: <code>/data/data/com.termux/files/home</code> (o <code>~</code>). Aula <a href="introducao.html">introdução</a>.</dd>
+
+  <dt><strong>Termux-API (pacote + app Termux:API)</strong></dt>
+  <dd>O pacote <code>termux-api</code> (instalado com <code>pkg install termux-api</code>) cria os comandos <code>termux-*</code> (bateria, SMS, GPS, câmera, lanterna…), e o app <strong>Termux:API</strong> (F-Droid) é quem recebe as permissões do Android. Sem os dois juntos, os comandos falham. Cola em <a href="ref-termux.html">ref-termux</a>.</dd>
+
+  <dt><strong>termux-setup-storage / ~/storage</strong></dt>
+  <dd>O comando que cria a pasta <code>~/storage</code> com atalhos para as pastas reais do celular (<code>dcim</code>, <code>downloads</code>, <code>pictures</code>, <code>shared</code>…). Sem ele, <code>ls ~/storage</code> dá <code>Permission denied</code>. Aula <a href="storage.html">storage</a>.</dd>
+
+  <dt><strong>Toast</strong></dt>
+  <dd>A caixinha de aviso rápido que aparece no pé da tela do Android por ~2 segundos. Pelo terminal: <code>termux-toast ola</code> → <code>Toast enviado: ola ✓</code>. Diferente da <strong>notificação</strong> (<code>termux-notification --title …</code>), que fica na barra de status.</dd>
+
+  <dt><strong>Wake lock</strong></dt>
+  <dd>O "segura a tela ligada": <code>termux-wake-lock</code> impede o Android de apagar a tela enquanto o script roda (útil para servidores/monitoramento) e <code>termux-wake-unlock</code> libera. <strong>Cuidado:</strong> esquecido, drena a bateria rapidinho. Aula <a href="wake-lock.html">wake lock</a>.</dd>
+
+  <dt><strong>Wi-Fi adb</strong></dt>
+  <dd>Depuração do Android <strong>sem cabo</strong>: com "Depuração por Wi-Fi" ligada, dá para fazer <code>adb connect 192.168.1.42:5555</code> e falar com o celular pela rede local — qualquer um na mesma Wi-Fi também pode, se a depuração ficar ligada. Perigoso num aparelho rootado.</dd>
+
+</dl>
+
+<hr>
+
+<h2>Resumo em tabela: termo → comando de exemplo</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Termo</th><th>Comando de exemplo</th><th>Saída na máquina da Ana</th></tr>
+<tr><td>Termux (ambiente)</td><td><code>pwd</code></td><td><code>/data/data/com.termux/files/home</code></td></tr>
+<tr><td>App uid</td><td><code>whoami</code></td><td><code>u0_a231 (ana)</code></td></tr>
+<tr><td>pkg</td><td><code>pkg install git</code></td><td><code>git instalado ✓</code></td></tr>
+<tr><td>Storage</td><td><code>termux-setup-storage</code> → <code>ls ~/storage</code></td><td><code>dcim  downloads  movies  music  pictures  shared</code></td></tr>
+<tr><td>Termux-API</td><td><code>termux-battery-status</code></td><td><code>"level": 87</code>, <code>"status": "Charging"</code></td></tr>
+<tr><td>adb (rootado)</td><td><code>adb devices</code> / <code>adb shell whoami</code></td><td><code>R5CT20ABCPIXEL</code> / <code>root</code></td></tr>
+<tr><td>sshd</td><td><code>sshd</code></td><td><code>sshd rodando ✓</code> — porta 8022</td></tr>
+<tr><td>proot-distro</td><td><code>proot-distro login ubuntu</code></td><td><code>root@localhost:~#</code></td></tr>
+<tr><td>ngrok</td><td><code>ngrok http 8080</code></td><td><code>https://termux-ana-7f3k.ngrok-free.app</code></td></tr>
+<tr><td>wake lock</td><td><code>termux-wake-lock</code></td><td><code>Wake lock adquirido ✓</code></td></tr>
+<tr><td>Agendamento</td><td><code>termux-job-scheduler --script ~/backup.sh --period 300000</code></td><td><code>Job agendado (id 1) … ✓</code></td></tr>
+<tr><td>Info do sistema</td><td><code>termux-info</code> / <code>uname -a</code></td><td><code>Device: Pixel 7 Pro (rooted)</code> / <code>Android 14</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Os pares que mais confundem</h2>
+<ul>
+  <li><strong>Termux × Termux:API:</strong> o Termux é o terminal; o Termux:API é o app que dá permissão para os comandos <code>termux-*</code> controlarem o celular.</li>
+  <li><strong>pkg × apt:</strong> sinônimos no Termux — use <code>pkg</code> por costume.</li>
+  <li><strong>root do proot × root do Android:</strong> <code>proot-distro login ubuntu</code> mostra <code>root@localhost</code>, mas é root <em>falso</em> (proot); só <code>su</code>/<code>adb root</code> em aparelho rootado é root de verdade.</li>
+  <li><strong>u0_a231 × root:</strong> dentro do Termux você é <code>u0_a231</code> (app comum); via <code>adb shell</code> no celular rootado você vira <code>root</code>.</li>
+  <li><strong>toast × notificação:</strong> toast aparece 2s na tela (<code>termux-toast</code>); notificação fica na barra de status (<code>termux-notification</code>).</li>
+  <li><strong>wake lock × tela sempre ligada:</strong> o wake lock segura a tela só enquanto o processo roda; o ajuste do Android é permanente.</li>
+  <li><strong>sshd porta 8022 × 22:</strong> no Termux usa 8022 (22 exige root); no PC, ssh usa 22.</li>
+  <li><strong>~/storage × pasta real:</strong> <code>~/storage/shared</code> é atalho para <code>/storage/emulated/0</code> — mesmo lugar, dois caminhos.</li>
+</ul>
+
+<hr>
+
+<h2>Pratique no terminal simulado</h2>
+
+<div class="try" data-goal="u0_a231" data-solucao="whoami">
+<p class="try-task"><strong>Missão 1 — quem sou eu:</strong> rode <code>whoami</code> e veja o app uid da Ana (<code>u0_a231 (ana)</code>). Compare com <code>pwd</code> e <code>uname -a</code>.</p>
+</div>
+
+<div class="try" data-goal="Pixel 7 Pro (rooted)" data-solucao="termux-info">
+<p class="try-task"><strong>Missão 2 — ficha do aparelho:</strong> rode <code>termux-info</code> e ache a linha <code>Device: Pixel 7 Pro (rooted)</code>. Depois rode <code>adb shell whoami</code> para ver a diferença: <code>root</code>.</p>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Termux = terminal + Linux no Android; home em <code>/data/data/com.termux/files/home</code>; app uid <code>u0_a231</code>.</li>
+  <li><code>pkg</code> instala em <code>$PREFIX</code>; repositório termux-main; apps oficiais vêm da <strong>F-Droid</strong>.</li>
+  <li><code>termux-*</code> = Termux-API (pacote + app Termux:API com permissões); <code>~/storage</code> precisa de <code>termux-setup-storage</code>.</li>
+  <li><code>adb</code> fala com o celular (rootado: vira <code>root</code>); <code>sshd</code> na porta <strong>8022</strong> traz o PC para dentro do celular.</li>
+  <li><code>proot-distro</code> = Ubuntu dentro do Termux sem root real; <code>ngrok</code> publica o servidor local; <code>termux-wake-lock</code> segura a tela (e a bateria).</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="problemas.html">Problemas comuns e soluções</a> — o FAQ: app não abre, storage negado, pacote não acha, SSH não conecta, bateria drainando com wake lock.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

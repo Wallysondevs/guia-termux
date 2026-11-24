@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Projetos práticos no Termux — aprenda fazendo no celular | Guia Termux</title>
+<meta name="description" content="Seção de projetos do Guia Termux: como usar a trilha de projetos práticos na máquina ana@android (Pixel 7 Pro, Android 14) — pré-requisitos (pkg update, termux-setup-storage, sshd na porta 8022), o roteiro de cada projeto e os 5 projetos: site no celular acessível de fora com python http.server + ngrok, bot de Telegram 24/7, sincronizar celular e PC com rsync/ssh, e backup automático de fotos com termux-job-scheduler e crontab. Missões no terminal simulado.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Projetos práticos no <span class="hl">Termux</span> — aprender fazendo</h1>
+
+<p class="intro">Até aqui você aprendeu as peças separadamente: <code>pkg</code> para instalar programas, <code>termux-setup-storage</code> para acessar as fotos, <code>sshd</code> para entrar no celular pelo PC, a Termux-API para câmera e GPS, <code>termux-job-scheduler</code> para agendar tarefas. Agora a Ana vai <strong>juntar tudo em projetos de verdade</strong> que rodam no próprio celular — um site público, um bot 24/7, sincronização com o PC e backup automático de fotos.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como funcionam os projetos deste guia: cada um junta várias aulas em um <strong>passo a passo</strong> com arquivos completos e missões no terminal simulado <code>ana@android</code>.</li>
+  <li>Os <strong>pré-requisitos</strong> que todo projeto usa: <code>pkg update</code>, <code>termux-setup-storage</code> e o <code>sshd</code> na porta 8022 (aulas: <a href="pkg-apt.html">pkg e apt</a>, <a href="storage.html">storage</a>, <a href="sshd.html">sshd</a>).</li>
+  <li>O <strong>roteiro de bolso</strong> de qualquer projeto no Termux: preparar → rodar → verificar → expor → automatizar.</li>
+  <li>Os <strong>cinco projetos</strong>: <a href="projeto-site-externo.html">site externo com ngrok</a>, <a href="projeto-bot-telegram.html">bot de Telegram</a>, <a href="projeto-sync-pc.html">sync com o PC via rsync</a> e <a href="projeto-fotos-auto.html">backup automático de fotos</a>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>Como funcionam os projetos</h2>
+<p>Cada projeto é uma página curta e direta, com a mesma anatomia: um <strong>objetivo</strong> ("quero um site meu acessível de fora do Wi-Fi"), os <strong>passos</strong> numerados, os <strong>arquivos completos</strong> nas caixas de arquivo (<code>pre.file</code>, com botão de copiar), a <strong>saída real do terminal</strong> nas caixas <code>pre.term</code> e, no fim, as caixas <strong>Experimente você mesmo no terminal</strong> — o Termux simulado da máquina fictícia <strong>ana@android</strong> (um Pixel 7 Pro com Android 14, Termux instalado e um dispositivo rootado visível via <code>adb</code>). Nessas caixas há uma <strong>missão</strong>: digite o comando pedido e, quando a saída certa aparecer, você ganha o ✔ "Missão cumprida!". Se travar, use o botão <strong>Ver comando</strong>; para zerar a máquina, use <strong>Reiniciar</strong>.</p>
+
+<pre class="term" data-host="android">$ help
+Termux simulado (ana@android):
+  pkg update | pkg install python | pkg list-installed | pkg search vim
+  termux-setup-storage   ls ~/storage
+  termux-battery-status | termux-toast 'oi' | termux-notification --title oi
+  termux-sms-list | termux-location | termux-contact-list
+  termux-camera-photo ~/foto.jpg | termux-torch on | termux-vibrate
+  termux-wake-lock | termux-job-scheduler --script ~/backup.sh --period 300000 | crontab -l
+  passwd | sshd | ssh-keygen
+  adb devices | adb root | adb shell whoami
+  proot-distro list | proot-distro login ubuntu
+  python -m http.server 8080 | sqlite3 meu.db "select 1;" | ngrok http 8080
+  ping -c 1 8.8.8.8 | ifconfig | nmap localhost | rsync
+  shell: ls cat pwd whoami uname clear echo help exit history</pre>
+
+<p>O <code>help</code> acima é o cardápio do simulador — dá para explorar à vontade. Mas cada projeto pede comandos específicos; é neles que as missões se concentram.</p>
+
+<div class="try" data-goal="[installed]" data-solucao="pkg list-installed">
+<p class="try-task"><strong>Missão:</strong> aqueça a máquina: digite <code>pkg list-installed</code> e confira a lista de pacotes já instalados no Termux da Ana — cada linha termina com <code>[installed]</code>.</p>
+</div>
+
+<hr>
+
+<h2>Pré-requisitos: o que todo projeto precisa</h2>
+<p>Antes de qualquer projeto, a Ana deixa o celular <strong>pronto para trabalhar</strong>. São três coisas que aparecem em todos os projetos desta seção — e valem para o seu celular real também:</p>
+
+<p><strong>1. Pacotes atualizados e o programa certo instalado.</strong> O Termux usa o <code>pkg</code> (baseado no apt do Debian) em vez da Play Store — os pacotes são compilados para rodar no Android. O ritual é sempre <code>pkg update</code> antes de instalar qualquer coisa (veja <a href="pkg-apt.html">pkg e apt</a>):</p>
+
+<pre class="term" data-host="android">$ pkg update
+Get:1 https://packages.termux.dev/apt/termux-main stable InRelease
+Reading package lists... Done
+Building dependency tree... Done
+$ pkg install python
+The following NEW packages will be installed:
+  python
+0 upgraded, 1 newly installed, 0 to remove.
+Setting up python (3.11.9-2) ...
+python instalado ✓</pre>
+
+<dl class="anatomy">
+  <dt>pkg</dt><dd>o gerenciador de pacotes do Termux (o "apt do celular")</dd>
+  <dt>update</dt><dd>atualiza a lista de pacotes disponíveis nos repositórios</dd>
+  <dt>install python</dt><dd>baixa e instala o pacote <code>python</code> (e as dependências) direto do repositório do Termux</dd>
+</dl>
+
+<p><strong>2. Acesso ao storage (fotos, downloads).</strong> Por padrão o Termux só enxerga a própria pasta privada. O comando <code>termux-setup-storage</code> cria links em <code>~/storage</code> para a memória interna do celular — mas só depois de você <strong>aceitar a permissão</strong> que o Android mostra (veja <a href="storage.html">storage</a>). Sem isso, o <code>ls ~/storage</code> responde <code>Permission denied</code>:</p>
+
+<pre class="term" data-host="android">$ ls ~/storage
+ls: cannot access '/data/data/com.termux/files/home/storage': Permission denied
+(dica: rode termux-setup-storage antes)
+$ termux-setup-storage
+Setting up storage access...
+Links criados em ~/storage:
+  dcim -> /storage/emulated/0/DCIM
+  downloads -> /storage/emulated/0/Download
+  pictures -> /storage/emulated/0/Pictures
+  music -> /storage/emulated/0/Music
+  movies -> /storage/emulated/0/Movies
+  shared -> /storage/emulated/0
+Storage configurado ✓ (aceite a permissão no Android)
+$ ls ~/storage
+dcim  downloads  movies  music  pictures  shared</pre>
+
+<p><strong>3. O celular como servidor (SSH).</strong> Dois projetos precisam que o PC converse com o celular — e a ponte é o <code>sshd</code> rodando na porta <strong>8022</strong> (a 22 dá conflito; no Android sem root só dá para usar portas altas). O comando <code>sshd</code> sobe o servidor e já diz como conectar do PC (veja <a href="sshd.html">sshd no Termux</a>):</p>
+
+<pre class="term" data-host="android">$ sshd
+Iniciando sshd na porta 8022...
+sshd rodando ✓ — conecte do PC com:
+  ssh ana@192.168.1.42 -p 8022</pre>
+
+<div class="warn"><strong>Permissão negada não é bug:</strong> se o <code>ls ~/storage</code> responder <code>Permission denied</code>, você pulou o <code>termux-setup-storage</code> ou negou a caixa de permissão do Android. Reabra o comando, aceite a permissão e tente de novo — sem isso nenhum projeto que mexe em fotos vai funcionar.</div>
+
+<hr>
+
+<h2>Os cinco projetos</h2>
+<p>Cada projeto abaixo começa de onde o anterior parou — eles compartilham a mesma máquina <code>ana@android</code>, então o que você instala em um vale para os outros:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Projeto</th><th>O que a Ana monta</th><th>Aulas que ele junta</th></tr>
+<tr><td><a href="projeto-site-externo.html">1. Site externo</a></td><td>Um site HTML servido pelo próprio celular com <code>python -m http.server 8080</code> e publicado na internet com <code>ngrok http 8080</code> (URL <code>*.ngrok-free.app</code>).</td><td><a href="pkg-apt.html">pkg</a>, <a href="servidor-web.html">servidor web</a>, <a href="rede-no-celular.html">túnel reverso</a></td></tr>
+<tr><td><a href="projeto-bot-telegram.html">2. Bot de Telegram 24/7</a></td><td>Um bot de Telegram em Python rodando sem parar no Termux, com token do BotFather e <code>termux-wake-lock</code> para a tela não apagar.</td><td><a href="pkg-apt.html">pkg install python</a>, <a href="wake-lock.html">wake lock</a>, <a href="editores.html">editores</a></td></tr>
+<tr><td><a href="projeto-sync-pc.html">3. Sync celular ↔ PC</a></td><td><code>sshd</code> no celular + <code>rsync</code> do PC enviando arquivos para <code>~/storage/shared</code> — o PC faz backup do celular (e o contrário).</td><td><a href="sshd.html">sshd</a>, <a href="seguranca-termux.html">chaves SSH</a>, <a href="storage.html">storage</a></td></tr>
+<tr><td><a href="projeto-fotos-auto.html">4. Backup automático de fotos</a></td><td>Um script <code>backup.sh</code> que compacta o DCIM, agendado a cada 30 minutos com <code>termux-job-scheduler</code> e <code>crontab</code>, com log em <code>backup.log</code>.</td><td><a href="termux-camera.html">câmera</a>, <a href="termux-job-scheduler.html">job-scheduler/cron</a>, <a href="storage.html">storage</a></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>A máquina de testes: ana@android</h2>
+<p>Todos os projetos usam a mesma máquina fictícia: o celular da Ana, um <strong>Pixel 7 Pro com Android 14</strong>, Termux instalado e — porque está rootado — visível para o PC via <code>adb</code>. Você pode inspecionar o appareil e fuçar o ambiente antes de começar:</p>
+
+<pre class="term" data-host="android">$ termux-info
+TERMUX_VERSION=0.118.0
+ANDROID_VERSION=14
+CPU: Snapdragon 8 Gen 2
+RAM total: 8 GB
+Storage: 128 GB
+Shell: /data/data/com.termux/files/usr/bin/bash
+Device: Pixel 7 Pro (rooted)
+$ ifconfig
+wlan0: flags=4163&lt;UP,BROADCAST,RUNNING,MULTICAST&gt;
+        inet 192.168.1.42  netmask 255.255.255.0
+        ether dc:a6:32:11:22:33
+
+lo: inet 127.0.0.1
+$ adb devices
+List of devices attached
+R5CT20ABCPIXEL	device product:blueline model:Pixel_7_Pro device:blueline
+
+Dispositivo rootado detectado ✓ (1 dispositivo)</pre>
+
+<p>O IP <code>192.168.1.42</code> na interface <code>wlan0</code> é o endereço do celular no Wi-Fi — é por ele que o PC chega no <code>sshd</code> (porta 8022) e no servidor web (porta 8080) dos próximos projetos. Se o IP mudar (roteador reiniciou, reconectou), confira de novo com <code>ifconfig</code>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Família</th><th>Comandos do simulador</th><th>Usados em</th></tr>
+<tr><td>Pacotes</td><td><code>pkg update</code> · <code>pkg install python</code> · <code>pkg list-installed</code> · <code>pkg search vim</code></td><td>Pré-requisitos de todos os projetos</td></tr>
+<tr><td>Storage</td><td><code>termux-setup-storage</code> · <code>ls ~/storage</code></td><td>Projetos 3 e 4 (sync e fotos)</td></tr>
+<tr><td>Servidor</td><td><code>sshd</code> · <code>python -m http.server 8080</code> · <code>ngrok http 8080</code></td><td>Projetos 1 e 3</td></tr>
+<tr><td>Automação</td><td><code>termux-job-scheduler --script ~/backup.sh --period 300000</code> · <code>crontab -l</code> · <code>cat backup.log</code></td><td>Projeto 4</td></tr>
+<tr><td>Energia</td><td><code>termux-wake-lock</code> · <code>termux-battery-status</code></td><td>Projeto 2 (bot 24/7)</td></tr>
+<tr><td>Rede/diagnóstico</td><td><code>ifconfig</code> · <code>ping -c 1 8.8.8.8</code> · <code>nmap localhost</code> · <code>rsync</code></td><td>Verificação de todos os projetos</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>O roteiro de bolso de qualquer projeto</h2>
+<p>Repare no padrão: <strong>todos</strong> os projetos seguem o mesmo roteiro, e dá para decorar:</p>
+<ul>
+  <li><strong>1. Preparar</strong> — <code>pkg update</code>, instalar o que falta (<code>pkg install python</code>), dar acesso ao storage (<code>termux-setup-storage</code>).</li>
+  <li><strong>2. Escrever</strong> — criar os arquivos do projeto (<code>index.html</code>, <code>bot.py</code>, <code>backup.sh</code>) na pasta <code>~/projetos</code> com o editor de sua escolha (veja <a href="editores.html">vim, nano e VS Code</a>).</li>
+  <li><strong>3. Rodar</strong> — subir o serviço no terminal (<code>python -m http.server 8080</code>, <code>sshd</code>, <code>python bot.py</code>).</li>
+  <li><strong>4. Verificar</strong> — confirmar que está no ar: <code>ifconfig</code> (qual o IP), <code>nmap localhost</code> (quais portas abertas), <code>cat backup.log</code> (o log fala).</li>
+  <li><strong>5. Expor</strong> — se precisar fora do Wi-Fi, túnel com <code>ngrok</code>; se precisar de outro dispositivo, <code>sshd</code>.</li>
+  <li><strong>6. Automatizar</strong> — agendar para rodar sozinho: <code>termux-job-scheduler</code> ou <code>crontab</code> (veja <a href="termux-job-scheduler.html">job-scheduler e crontab</a>).</li>
+</ul>
+
+<pre class="term" data-host="android">$ ls
+backup.sh  storage  .bashrc  .termux  projetos
+$ whoami
+u0_a231 (ana)
+$ pwd
+/data/data/com.termux/files/home
+$ uname -a
+Linux localhost 5.10.137-android14 #1 SMP PREEMPT
+Android 14 · aarch64</pre>
+
+<p>Todo projeto mora numa pasta própria dentro de <code>~/projetos</code>, com o código e um arquivo de configuração fora do git:</p>
+
+<pre class="file" data-file="~/projetos/ (estrutura típica)">projetos/
+├── site/
+│   └── index.html        # projeto 1: site estático
+├── bot/
+│   ├── bot.py            # projeto 2: bot de Telegram
+│   └── config.env        # BOT_TOKEN=... (no .gitignore!)
+└── backup.sh             # projeto 4: script de backup (na home: ~/backup.sh)</pre>
+
+<div class="warn"><strong>Projetos 24/7 consomem bateria:</strong> deixar um servidor ou bot rodando o dia inteiro no celular esquenta e gasta carga. Para isso existe o <code>termux-wake-lock</code> (veja <a href="wake-lock.html">wake lock</a>) — e, no mundo real, prefira deixar o carregador conectado ou agendar as tarefas para horários em que o celular está na tomada.</div>
+
+<div class="warn"><strong>Nunca exponha dados reais:</strong> os projetos deste guia usam a máquina fictícia <code>ana@android</code> de propósito. No seu celular real, <strong>não</strong> publique com ngrok pastas com fotos, documentos ou bancos de dados verdadeiros — o túnel deixa o conteúdo público na internet. Veja as regras em <a href="seguranca-termux.html">segurança no Termux</a> e os erros comuns em <a href="problemas.html">problemas comuns</a>.</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Cada projeto junta várias aulas em um passo a passo com arquivos completos e missões no terminal simulado <code>ana@android</code> (Pixel 7 Pro, Android 14, rootado via adb).</li>
+  <li>Pré-requisitos de todos os projetos: <code>pkg update</code> + <code>pkg install …</code>, <code>termux-setup-storage</code> (senão <code>ls ~/storage</code> dá <code>Permission denied</code>) e <code>sshd</code> na porta 8022.</li>
+  <li>Roteiro de bolso: <strong>preparar → escrever → rodar → verificar → expor → automatizar</strong>.</li>
+  <li>Os projetos: <a href="projeto-site-externo.html">site externo com ngrok</a>, <a href="projeto-bot-telegram.html">bot de Telegram 24/7</a>, <a href="projeto-sync-pc.html">sync celular ↔ PC com rsync/sshd</a> e <a href="projeto-fotos-auto.html">backup automático de fotos</a>.</li>
+  <li>Nas caixas <strong>Experimente</strong>, a saída certa dá ✔ "Missão cumprida!" — use <strong>Ver comando</strong> se travar e <strong>Reiniciar</strong> para zerar a máquina.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="projeto-site-externo.html">Projeto 1 — Site no celular acessível de fora</a> — sirva um site com <code>python -m http.server 8080</code> e publique com <code>ngrok http 8080</code>.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

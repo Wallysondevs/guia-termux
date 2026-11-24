@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wake lock no Termux: segurar tela e CPU ligadas (termux-wake-lock) | Guia Termux</title>
+<meta name="description" content="Wake lock no Termux: use termux-wake-lock para impedir que a tela apague e a CPU durma — ideal para servidor web, sshd ou backup de madrugada rodando no celular — e termux-wake-unlock para liberar. Veja o caso de uso combinado com termux-job-scheduler, o aviso de bateria e missões no terminal simulado na máquina ana@android. Próxima aula: editores (vim, nano, VS Code).">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">Wake lock</span>: segurar a tela e a CPU ligadas no Termux</h1>
+<p class="intro">Você agendou o <a href="termux-job-scheduler.html">backup para rodar de madrugada</a> e subiu um <a href="servidor-web.html">servidor web</a> no celular. Só tem um problema: o Android adora dormir. Depois de um tempo com a tela apagada, ele entra em <em>doze</em> e derruba a CPU — e seus jobs e servidores param no meio. A solução é o <strong>wake lock</strong>: um pedido para o sistema <em>não dormir</em> enquanto você segura o lock. Pelo terminal, isso é o <code>termux-wake-lock</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é um wake lock e por que o Android entra em doze sem ele;</li>
+  <li><code>termux-wake-lock</code>: adquirir o lock (<code>Wake lock adquirido ✓</code>);</li>
+  <li><code>termux-wake-unlock</code>: liberar o lock na hora certa;</li>
+  <li>O caso de uso clássico: servidor/backup de madrugada no celular;</li>
+  <li>Como combinar wake lock + <code>sshd</code> + <code>termux-job-scheduler</code>;</li>
+  <li>O custo: bateria — e como monitorar com <code>termux-battery-status</code>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>O problema: o Android dorme</h2>
+<p>Quando a tela apaga, o Android começa a economizar agressivamente: reduz a CPU, atrasa jobs e, no modo doze profundo, só acorda o aparelho de tempos em tempos. Para um servidor no celular — ou um backup que precisa terminar às 3h — isso é fatal. O <strong>wake lock</strong> é um contador que o sistema respeita: enquanto um app segura um wake lock, o dispositivo não entra em doze. O Termux-API expõe isso num comando simples:</p>
+<pre class="term">$ termux-wake-lock
+Wake lock adquirido ✓ (a tela não apaga enquanto segurar)</pre>
+<p>A partir desse momento, a tela fica acesa e a CPU acordada — o celular vira um servidor de verdade, ligado na tomada. Para devolver o controle ao Android:</p>
+<pre class="term">$ termux-wake-unlock
+Wake lock liberado.</pre>
+
+<dl class="anatomy">
+  <dt>termux-wake-lock</dt><dd>adquire o wake lock (partial, na prática): tela não apaga e CPU não dorme — saída <code>Wake lock adquirido ✓</code>.</dd>
+  <dt>termux-wake-unlock</dt><dd>libera o lock: o Android volta a poder desligar a tela e entrar em doze — saída <code>Wake lock liberado.</code></dd>
+  <dt>Quem segura o lock</dt><dd>o app Termux:API segura em nome do Termux; se o processo do Termux morrer, o lock cai junto.</dd>
+</dl>
+
+<div class="warn"><strong>Bateria é o preço:</strong> tela acesa + CPU acordada drenam a bateria rápido — o <code>termux-battery-status</code> da <a href="termux-api.html">aula de Termux-API</a> vai mostrar o <code>"level"</code> caindo. Regra de ouro: só use wake lock <strong>com o celular na tomada</strong> (<code>"status": "Charging"</code>), e sempre rode <code>termux-wake-unlock</code> quando o trabalho terminar. Um wake lock esquecido é a causa nº 1 de "celular descarregado de manhã".</div>
+
+<hr>
+
+<h2>Caso de uso: servidor de madrugada</h2>
+<p>O cenário completo que junta tudo que vimos: a Ana quer que o celular dela vire um servidorzinho à noite — <code>sshd</code> ligado (aula de <a href="sshd.html">SSH no celular</a>), servidor web python na porta 8080 (aula de <a href="servidor-web.html">servidor web</a>) e o backup agendado (aula de <a href="termux-job-scheduler.html">job-scheduler</a>). O script que liga tudo isso de noite e desliga de manhã:</p>
+<pre class="file" data-file="servidor-noturno.sh">#!/data/data/com.termux/files/usr/bin/bash
+# liga o "modo servidor" do celular à noite
+termux-wake-lock                 # tela acesa + CPU acordada
+sshd                             # SSH na porta 8022
+python -m http.server 8080 &     # site na porta 8080
+termux-toast "servidor no ar ✓"
+# de manhã, depois do backup:
+# termux-wake-unlock             # libera o lock
+# kill %1 %2                     # mata python e sshd</pre>
+<p>Rodando isso, o comando <code>termux-wake-lock</code> garante que o <code>python -m http.server 8080</code> (<code>Serving HTTP on 0.0.0.0 port 8080</code>) e o <code>sshd</code> (<code>sshd rodando ✓</code>, conecte com <code>ssh ana@192.168.1.42 -p 8022</code>) continuem vivos a noite toda, mesmo com a tela apagada. Na máquina da Ana, dá para ver o IP dela na rede local com <code>ifconfig</code>:</p>
+<pre class="term">$ ifconfig
+wlan0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>
+        inet 192.168.1.42  netmask 255.255.255.0
+        ether dc:a6:32:11:22:33
+
+lo: inet 127.0.0.1</pre>
+<p>Ou seja: de outro computador na mesma rede Wi-Fi, basta acessar <code>http://192.168.1.42:8080</code> ou conectar via SSH na porta 8022 — o celular da Ana virou um servidor de bolso.</p>
+
+<hr>
+
+<h2>Wake lock + jobs agendados</h2>
+<p>Lembra do aviso da aula de <a href="termux-job-scheduler.html">termux-job-scheduler</a>: o job só roda com o Termux vivo. O wake lock resolve exatamente isso — segurando o dispositivo acordado, os jobs do <code>termux-job-scheduler</code> e as linhas do <code>crontab -l</code> (como o backup de 30 em 30 minutos) continuam executando de madrugada. A combinación típica num script de backup noturno:</p>
+<pre class="term">$ termux-wake-lock
+Wake lock adquirido ✓ (a tela não apaga enquanto segurar)
+$ termux-job-scheduler --script ~/backup.sh --period 300000
+Job agendado (id 1): ~/backup.sh a cada 300000 ms ✓
+$ crontab -l
+# crontab do Termux (ana@android)
+*/30 * * * * ~/backup.sh >> ~/backup.log 2>&1
+$ cat backup.log
+backup iniciado
+backup concluido</pre>
+<p>E para saber se ainda vale a pena segurar o lock (celular carregando?), cheque a bateria antes:</p>
+<pre class="term">$ termux-battery-status
+{
+  "level": 87,
+  "status": "Charging",
+  ...
+}</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando</th><th>Saída</th><th>Uso</th></tr>
+<tr><td><code>termux-wake-lock</code></td><td><code>Wake lock adquirido ✓</code></td><td>impede tela de apagar e CPU de dormir</td></tr>
+<tr><td><code>termux-wake-unlock</code></td><td><code>Wake lock liberado.</code></td><td>devolve o controle ao Android (sempre rode no fim!)</td></tr>
+<tr><td><a href="termux-api.html"><code>termux-battery-status</code></a></td><td><code>"level": 87, "status": "Charging"</code></td><td>conferir se está na tomada antes de segurar o lock</td></tr>
+<tr><td><a href="termux-torch.html"><code>termux-toast</code></a></td><td><code>Toast enviado: ... ✓</code></td><td>avisar na tela quando o modo servidor ligar</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Missões no simulador</h2>
+<p>Na máquina <code>ana@android</code>, segure o wake lock e depois libere:</p>
+
+<div class="try" data-goal="Wake lock adquirido ✓" data-solucao="termux-wake-lock">
+<p class="try-task"><strong>Missão:</strong> adquira o wake lock com <code>termux-wake-lock</code> — a saída confirma <code>Wake lock adquirido ✓ (a tela não apaga enquanto segurar)</code>.</p>
+</div>
+
+<div class="try" data-goal="Wake lock liberado" data-solucao="termux-wake-unlock">
+<p class="try-task"><strong>Missão:</strong> agora libere o lock com <code>termux-wake-unlock</code> — a saída mostra <code>Wake lock liberado.</code> Depois combine: <code>termux-wake-lock</code>, <code>sshd</code> e <code>termux-battery-status</code>.</p>
+</div>
+
+<hr>
+
+<h2>Checklist do "servidor de bolso"</h2>
+<p>Antes de deixar o celular trabalhando sozinho de madrugada, confira a combinação completa — tudo isso funciona na máquina <code>ana@android</code>:</p>
+<pre class="term">$ termux-info
+TERMUX_VERSION=0.118.0
+ANDROID_VERSION=14
+CPU: Snapdragon 8 Gen 2
+RAM total: 8 GB
+Storage: 128 GB
+Shell: /data/data/com.termux/files/usr/bin/bash
+Device: Pixel 7 Pro (rooted)
+$ termux-battery-status
+{
+  "level": 87,
+  "status": "Charging",
+  ...
+}
+$ termux-wake-lock
+Wake lock adquirido ✓ (a tela não apaga enquanto segurar)
+$ sshd
+Iniciando sshd na porta 8022...
+sshd rodando ✓ — conecte do PC com:
+  ssh ana@192.168.1.42 -p 8022</pre>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Passo</th><th>Comando</th><th>Por quê</th></tr>
+<tr><td>1. conferir o aparelho</td><td><code>termux-info</code></td><td>saber CPU/RAM/modelo antes de exigir demais</td></tr>
+<tr><td>2. conferir a energia</td><td><code>termux-battery-status</code></td><td>wake lock só faz sentido carregando (<code>"Charging"</code>)</td></tr>
+<tr><td>3. segurar o dispositivo acordado</td><td><code>termux-wake-lock</code></td><td>tela acesa + CPU ativa durante a madrugada</td></tr>
+<tr><td>4. subir os serviços</td><td><code>sshd</code> + <code>python -m http.server 8080</code></td><td>SSH na 8022 e site na 8080 acessíveis na rede local</td></tr>
+<tr><td>5. agendar as tarefas</td><td><code>termux-job-scheduler ...</code> / <code>crontab -l</code></td><td>backup e rotinas rodando sozinhos</td></tr>
+<tr><td>6. liberar no fim</td><td><code>termux-wake-unlock</code></td><td>devolve a economia de energia ao Android</td></tr>
+</table>
+</div>
+
+<div class="warn"><strong>O Android pode matar o app:</strong> fabricantes diferentes agressivos com apps em segundo plano (MIUI, Samsung One UI...). Se o seu servidor de bolso "morre" de madrugada mesmo com wake lock, o culpado pode ser o gerenciador de bateria do fabricante: nas configurações de bateria do Android, coloque o Termux e o Termux:API como "sem restrições" / "não otimizados".</div>
+
+<hr>
+
+<h2>Monitorando o servidor de noite</h2>
+<p>Com o wake lock segurado e os serviços no ar, dá para confirmar tudo pelo próprio terminal — IP na rede local, portas abertas e internet:</p>
+<pre class="term">$ ifconfig
+wlan0: ...
+        inet 192.168.1.42  netmask 255.255.255.0
+$ nmap localhost
+PORT     STATE SERVICE
+8022/tcp open  ssh
+8080/tcp open  http
+Nmap done: 1 IP address scanned ✓
+$ ping -c 1 8.8.8.8
+1 packets transmitted, 1 packets received, 0.0% packet loss ✓</pre>
+<p>O <code>nmap localhost</code> mostra exatamente o que o servidor de bolso está oferecendo: <code>8022/tcp open ssh</code> (o <code>sshd</code>) e <code>8080/tcp open http</code> (o <code>python -m http.server 8080</code>). O <code>ping</code> confirma que a internet do celular está viva. Esse trio — <code>ifconfig</code> + <code>nmap</code> + <code>ping</code> — é o "painel de status" de qualquer servidor, e no Termux ele está a um comando de distância.</p>
+
+<hr>
+
+<h2>Desligando o modo servidor de manhã</h2>
+<p>Tão importante quanto ligar é desligar — um wake lock esquecido continua segurando a CPU com o celular fora da tomada. Dá para automatizar o desligamento no próprio crontab: a linha abaixo libera o lock todo dia às 7h:</p>
+<pre class="file" data-file="crontab"># crontab do Termux (ana@android)
+*/30 * * * * ~/backup.sh >> ~/backup.log 2>&1
+# modo servidor só durante a noite: liga às 22h, desliga às 7h
+0 22 * * * termux-wake-lock && sshd
+0 7 * * * termux-wake-unlock</pre>
+<pre class="term">$ crontab -l
+# crontab do Termux (ana@android)
+*/30 * * * * ~/backup.sh >> ~/backup.log 2>&1</pre>
+<p>Assim o celular trabalha de noite (backup, servidor) e volta a economizar de dia. Se o celular estiver sem bateria (<code>termux-battery-status</code> sem <code>"status": "Charging"</code>), o ideal é nem segurar o lock — coloque essa checagem dentro do próprio script que liga o modo servidor.</p>
+
+<hr>
+
+<h2>O que o wake lock não faz</h2>
+<p>É importante saber os limites: o <code>termux-wake-lock</code> impede que a <strong>tela apague e a CPU durma</strong>, mas não impede que o Android <em>mate o processo</em> do Termux se a memória acabar ou se o fabricante for agressivo com apps em segundo plano. Ou seja: wake lock ≠ imortalidade. Para um servidor sério de madrugada, a combinação mais robusta é:</p>
+<ul>
+  <li><strong>Wake lock</strong> segurado (<code>termux-wake-lock</code> → <code>Wake lock adquirido ✓</code>);</li>
+  <li>uma <strong>sessão SSH aberta do PC para o celular</strong> (<code>ssh ana@192.168.1.42 -p 8022</code>), que mantém o app vivo e ainda deixa você de olho;</li>
+  <li>o app Termux e o Termux:API marcados como <strong>"sem otimização de bateria"</strong> nas configurações do Android;</li>
+  <li>e o script de desligamento agendado (<code>termux-wake-unlock</code> de manhã) para não gastar bateria à toa.</li>
+</ul>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Sem wake lock, o Android entra em doze com a tela apagada e mata jobs/servidores — o <code>termux-wake-lock</code> impede isso.</li>
+  <li><code>termux-wake-lock</code> → <code>Wake lock adquirido ✓ (a tela não apaga enquanto segurar)</code>; <code>termux-wake-unlock</code> → <code>Wake lock liberado.</code></li>
+  <li>Caso de uso clássico: <code>sshd</code> + <code>python -m http.server 8080</code> + jobs agendados rodando de madrugada no celular.</li>
+  <li>Sempre use com o celular carregando (<code>"status": "Charging"</code> no <code>termux-battery-status</code>) e sempre libere com <code>termux-wake-unlock</code> no fim.</li>
+  <li>O lock cai se o Termux morrer — combine com uma sessão SSH ativa para manter o app vivo.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="editores.html">editores no celular</a> — <code>vim</code>, <code>nano</code> e VS Code (code-server/Acode) para programar direto no Termux.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

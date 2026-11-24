@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Projeto 2 — Bot de Telegram rodando no Termux 24/7 | Guia Termux</title>
+<meta name="description" content="Projeto prático de Termux: rode um bot de Telegram 24/7 no próprio celular Android — instale o Python com pkg install python, crie o bot no BotFather para ganhar o token, escreva o bot.py com a biblioteca python-telegram-bot, rode com python bot.py dentro de uma sessão tmux e mantenha o celular acordado com termux-wake-lock. Cuidados reais: nunca commitar o token, .gitignore, bateria e dados do bot. Missão no terminal simulado ana@android.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Projeto 2 — <span class="hl">bot de Telegram</span> rodando no Termux 24/7</h1>
+
+<p class="intro">No projeto anterior o servidor parava quando o terminal fechava. Agora a Ana quer o contrário: <strong>um processo que nunca morre</strong>. Ela vai criar um bot de Telegram em Python que responde comandos no chat — e deixar esse bot rodando <strong>o dia inteiro no celular</strong>, mesmo com a tela apagada. Para isso ela junta três peças: o interpretador Python, uma sessão <code>tmux</code> que sobrevive ao app fechado e o <code>termux-wake-lock</code> que impede o Android de dormir.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A instalar o Python no Termux com <code>pkg install python</code> e conferir com <code>python --version</code>.</li>
+  <li>A criar um bot no <strong>BotFather</strong> (o bot oficial do Telegram) e receber o <strong>token</strong> — a "senha" do bot.</li>
+  <li>A escrever o <code>bot.py</code> com a biblioteca <code>python-telegram-bot</code> e rodar com <code>python bot.py</code>.</li>
+  <li>A deixar o bot no ar de verdade: sessão <code>tmux</code> + <code>termux-wake-lock</code> (aulas: <a href="wake-lock.html">wake lock</a>, <a href="editores.html">editores</a>).</li>
+  <li>Os riscos reais: <strong>token vazando no código</strong>, bateria 24/7 e o que acontece quando o Android mata o app.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>Passo 1 — instalar o Python</h2>
+<p>O bot é um programa Python, então o primeiro passo é garantir o interpretador no celular. A Ana já fez <code>pkg update</code> nos pré-requisitos (veja <a href="projetos.html">projetos</a> e <a href="pkg-apt.html">pkg e apt</a>) e agora instala:</p>
+
+<pre class="term" data-host="android">$ pkg install python
+The following NEW packages will be installed:
+  python
+0 upgraded, 1 newly installed, 0 to remove.
+Setting up python (3.11.9-2) ...
+python instalado ✓
+$ python --version
+Python 3.11.9</pre>
+
+<div class="try" data-goal="python instalado ✓" data-solucao="pkg install python">
+<p class="try-task"><strong>Missão:</strong> instale o Python no simulador: digite <code>pkg install python</code> — a última linha da saída é <code>python instalado ✓</code>. Depois confirme com <code>python --version</code> (mostra <code>Python 3.11.9</code>).</p>
+</div>
+
+<dl class="anatomy">
+  <dt>pkg install</dt><dd>o gerenciador de pacotes do Termux baixa o pacote do repositório oficial e instala</dd>
+  <dt>python</dt><dd>o nome do pacote — o Termux compila tudo para a arquitetura do celular (aarch64)</dd>
+  <dt>python --version</dt><dd>sempre confirme a instalação perguntando a versão ao próprio programa</dd>
+</dl>
+
+<p>Com o Python no lugar, a Ana instala a biblioteca do bot com o <code>pip</code> (que vem junto): <code>pip install python-telegram-bot</code>. No simulador isso não existe, mas no celular real é esse o comando — e o <code>pip</code> é o gerenciador de pacotes do Python, análogo ao <code>pkg</code> do Termux.</p>
+
+<hr>
+
+<h2>Passo 2 — criar o bot no BotFather e pegar o token</h2>
+<p>Todo bot de Telegram nasce no <strong>@BotFather</strong>, o bot oficial do próprio Telegram. Pelo app do Telegram (celular ou PC), a Ana manda:</p>
+
+<pre class="term" data-host="android">$ # no Telegram, fale com o @BotFather:
+# /newbot -> escolhe o nome (Ana Helpdesk Bot) e o @usuario (ana_helpdesk_bot)
+# o BotFather responde com o TOKEN:
+# 7315204186:AAH1x...  (use esse token no seu bot.py — NUNCA compartilhe)</pre>
+
+<p>Esse token é a <strong>senha mestra do bot</strong>: quem tem o token controla o bot — manda mensagem por ele, lê as conversas, apaga o bot. Por isso a regra número 1 de bots: <strong>nunca coloque o token direto no código que vai para o GitHub</strong>. O jeito certo é ler de uma variável de ambiente ou de um arquivo fora do repositório:</p>
+
+<pre class="file" data-file="~/projetos/bot/config.env"># ~/projetos/bot/config.env  (adicione ao .gitignore!)
+BOT_TOKEN=7315204186:AAH1x...(token que o BotFather deu)</pre>
+
+<div class="warn"><strong>Token no código = bot roubado:</strong> se você commitar o <code>BOT_TOKEN</code> num repositório público, em minutos um robô varre o GitHub, pega seu token e usa seu bot para spam — e a conta do Telegram pode ser banida. Sempre: <code>.gitignore</code> com <code>config.env</code>, token em variável de ambiente (<code>os.environ["BOT_TOKEN"]</code>), e se vazar, revogue no próprio @BotFather com <code>/revoke</code> e gere um novo.</div>
+
+<hr>
+
+<h2>Passo 3 — escrever o bot.py</h2>
+<p>Com o token em mãos, a Ana escreve o bot na pasta <code>~/projetos/bot</code>. Um bot mínimo que responde <code>/start</code> e ecoa o resto (com a biblioteca <code>python-telegram-bot</code>, a API de bots do Telegram em Python):</p>
+
+<pre class="file" data-file="~/projetos/bot/bot.py">#!/data/data/com.termux/files/usr/bin/python3
+# bot.py — bot de Telegram rodando no Termux (ana@android)
+import os
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+
+TOKEN = os.environ.get("BOT_TOKEN")  # NUNCA hardcode o token aqui!
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Oi! Eu sou o bot da Ana e estou rodando 24/7 no Termux 📱\n"
+        "Comandos: /start /status /ajuda"
+    )
+
+async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Status: online ✓ (celular: Pixel 7 Pro, Android 14)")
+
+async def eco(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(f"Você disse: {update.message.text}")
+
+app = ApplicationBuilder().token(TOKEN).build()
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("status", status))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, eco))
+
+print("Bot rodando... (Ctrl+C para parar)")
+app.run_polling()  # fica perguntando ao Telegram se chegou mensagem nova</pre>
+
+<p>Os pontos importantes desse código: o token vem de <code>os.environ</code> (carregado do <code>config.env</code> antes de rodar: <code>source ~/projetos/bot/config.env</code>), e o <code>app.run_polling()</code> é o <strong>loop infinito</strong> que mantém o bot vivo perguntando ao Telegram "chegou mensagem?" a cada poucos segundos. Enquanto esse loop roda, o bot responde.</p>
+
+<pre class="term" data-host="android">$ source ~/projetos/bot/config.env
+$ python ~/projetos/bot/bot.py
+Bot rodando... (Ctrl+C para parar)
+# no Telegram, a Ana manda /start no @ana_helpdesk_bot e o bot responde na hora</pre>
+
+<hr>
+
+<h2>Passo 4 — deixar o bot no ar 24/7: tmux + wake lock</h2>
+<p>Se a Ana rodar <code>python bot.py</code> direto no Termux e fechar o app, o Android mata o processo na hora. Para o bot ficar no ar de verdade, ela usa duas ferramentas:</p>
+
+<p><strong>1. O tmux</strong> — um "multiplexador de terminal": cada sessão do tmux roda <strong>independente</strong> do app estar aberto na tela. A Ana instala (<code>pkg install tmux</code>), entra (<code>tmux</code>), roda o bot dentro da sessão e <strong>destaca</strong> com <kbd>Ctrl</kbd>+<kbd>B</kbd> e depois <kbd>D</kbd> — o bot continua rodando "por trás". Depois é só <code>tmux attach</code> para voltar a ver:</p>
+
+<pre class="term" data-host="android">$ pkg install tmux
+...
+tmux instalado ✓
+$ tmux new -s bot        # cria a sessão "bot"
+# dentro da sessão:
+$ source ~/projetos/bot/config.env && python ~/projetos/bot/bot.py
+Bot rodando... (Ctrl+C para parar)
+# Ctrl+B depois D para destacar — o bot continua vivo
+$ tmux ls
+bot: 1 windows (created ...)
+$ tmux attach -t bot    # volta para ver o bot</pre>
+
+<p><strong>2. O wake lock</strong> — o Android apaga a tela e suspende os apps depois de um tempo; o <code>termux-wake-lock</code> diz ao sistema "não durma enquanto eu estiver segurando esse lock" (veja <a href="wake-lock.html">wake lock e termux-services</a>). A Ana segura o lock dentro da sessão do bot:</p>
+
+<pre class="term" data-host="android">$ termux-wake-lock
+Wake lock adquirido ✓ (a tela não apaga enquanto segurar)</pre>
+
+<dl class="anatomy">
+  <dt>termux-wake-lock</dt><dd>adquire um "wake lock" parcial: a CPU continua ligada e o app não é suspenso, mesmo com a tela apagada</dd>
+  <dt>tmux new -s bot</dt><dd>cria uma sessão nova chamada <code>bot</code> — o nome serve para voltar nela depois (<code>tmux attach -t bot</code>)</dd>
+  <dt>Ctrl+B, D</dt><dd>"detach": sai da sessão sem matar o que está rodando nela — é o truque que faz o bot sobreviver ao app fechado</dd>
+</dl>
+
+<div class="try" data-goal="Wake lock adquirido ✓" data-solucao="termux-wake-lock">
+<p class="try-task"><strong>Missão:</strong> segure o celular acordado no simulador: digite <code>termux-wake-lock</code> — a saída confirma <code>Wake lock adquirido ✓</code>.</p>
+</div>
+
+<div class="warn"><strong>24/7 no celular tem preço:</strong> tela ligada + CPU ativa + rádio do Telegram polling gastam bateria — confira com <code>termux-battery-status</code>. No mundo real, deixe o celular na tomada (ou agende o bot para ligar só de dia, com o <a href="termux-job-scheduler.html">termux-job-scheduler</a>). E lembre: o Android pode matar apps em segundo plano mesmo com wake lock em celulares agressivos — para serviços realmente críticos, o caminho é o <code>termux-services</code> com <code>sv</code> ou um servidorzinho de verdade (VPS).</div>
+
+<pre class="term" data-host="android">$ termux-battery-status
+{
+  "level": 87,
+  "status": "Charging",
+  "temperature": 31.5,
+  "plugged": "AC",
+  "health": "Good"
+}</pre>
+
+<hr>
+
+<h2>Passo 5 — conferindo se o bot está vivo</h2>
+<p>Bot no ar não é bot <em>respondendo</em>. A Ana confere de tempos em tempos: manda <code>/status</code> no Telegram, olha o log da sessão do tmux (<code>tmux attach -t bot</code>) e, no próprio celular, confirma que o processo Python está na lista:</p>
+
+<pre class="term" data-host="android">$ htop
+CPU 12%  MEM 3.1/8 GB  SWAP 0
+  1 root  Termux
+  2 u0_a231  bash
+(press q)
+$ ps | grep python    # no celular real: mostra o processo do bot rodando</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Problema</th><th>Sintoma</th><th>Solução</th></tr>
+<tr><td>Bot não responde</td><td><code>/start</code> sem resposta</td><td><code>tmux attach -t bot</code> e veja se o <code>Bot rodando...</code> continua; se o processo morreu, rode de novo e procure o erro no log</td></tr>
+<tr><td>Token inválido</td><td>erro <code>Unauthorized</code> no log</td><td>revogue no @BotFather (<code>/revoke</code>), gere token novo e atualize o <code>config.env</code></td></tr>
+<tr><td>App fechado matou o bot</td><td>bot para quando a tela apaga</td><td>confirme o <code>termux-wake-lock</code> seguro e a sessão tmux viva (<code>tmux ls</code>)</td></tr>
+<tr><td>Internet caiu</td><td><code>ping -c 1 8.8.8.8</code> falha</td><td>o polling reconecta sozinho quando a rede volta; o bot volta sem reiniciar</td></tr>
+</table>
+</div>
+
+<div class="warn"><strong>Bot de Telegram no Termux é para aprender e para uso pessoal:</strong> o plano gratuito do Telegram não foi feito para bots comerciais em celular — para produção use um servidor (VPS) com systemd, e ative a <strong>2FA</strong> na conta. E nunca peça dados sensíveis (senhas, códigos de banco) por um bot que você não controla 100%.</div>
+
+<hr>
+
+<h2>Extra — editando o bot de longe e reiniciando sozinho</h2>
+<p>Com o bot no ar, a Ana percebe que editar o <code>bot.py</code> no teclado virtual do celular é chato. A solução é o que ela vai montar no próximo projeto: o <code>sshd</code> no celular, para editar os arquivos <strong>do PC</strong> por SSH/SCP (<a href="projeto-sync-pc.html">sync celular ↔ PC</a>). E para o bot voltar sozinho depois que o celular reiniciar, dá para registrar um script de boot no Termux (<code>~/.termux/boot/</code>, que roda quando o app abre) — no simulador, o análogo é agendar com o <code>termux-job-scheduler</code> (veja <a href="termux-job-scheduler.html">job-scheduler e crontab</a>):</p>
+
+<pre class="term" data-host="android">$ termux-job-scheduler --script ~/projetos/bot/start.sh --period 3600000
+Job agendado (id 1): ~/projetos/bot/start.sh a cada 3600000 ms ✓</pre>
+
+<pre class="file" data-file="~/projetos/bot/start.sh">#!/data/data/com.termux/files/usr/bin/bash
+# start.sh — garante que o bot está no ar (roda dentro do tmux)
+if ! tmux has-session -t bot 2>/dev/null; then
+  tmux new -d -s bot
+  tmux send-keys -t bot "source ~/projetos/bot/config.env && python ~/projetos/bot/bot.py" Enter
+fi
+termux-wake-lock</pre>
+
+<p>O <code>start.sh</code> é idempotente: se a sessão <code>bot</code> já existe, não faz nada; se não existe, cria e manda o comando de subir o bot. Esse padrão — <strong>"garanta que o estado desejado existe"</strong> — é o mesmo que o Kubernetes usa com seus controladores, e dá para aplicar em qualquer script de automação no Termux.</p>
+
+<div class="note">
+<strong>Fluxo de trabalho recomendado:</strong> desenvolva o bot no PC (VS Code + Python), mande para o celular com <code>rsync</code>/<code>scp</code> pela porta 8022, e só rode <code>python bot.py</code> no Termux dentro do tmux. Editar código no celular é para emergência — o teclado virtual não perdoa.
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Bot de Telegram = programa Python que fica num loop (<code>app.run_polling()</code>) perguntando ao Telegram se chegou mensagem.</li>
+  <li>Instale a base com <code>pkg install python</code> (<code>python instalado ✓</code>, <code>Python 3.11.9</code>) e a biblioteca com <code>pip install python-telegram-bot</code>.</li>
+  <li>O token vem do @BotFather e é a senha do bot: guarde em <code>config.env</code> fora do git (com <code>.gitignore</code>) e leia com <code>os.environ</code> — nunca no código.</li>
+  <li>Para rodar 24/7: sessão <code>tmux</code> (<code>tmux new -s bot</code>, destaque com <kbd>Ctrl</kbd>+<kbd>B</kbd>,<kbd>D</kbd>) + <code>termux-wake-lock</code> (<code>Wake lock adquirido ✓</code>).</li>
+  <li>Verifique que está vivo: <code>tmux ls</code>, <code>tmux attach -t bot</code>, <code>/status</code> no Telegram, <code>htop</code>/<code>ps</code> no celular e <code>termux-battery-status</code> para a bateria.</li>
+  <li>Bateria é o limite real do 24/7 no celular: carregador ligado ou agendamento com <code>termux-job-scheduler</code>.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="projeto-sync-pc.html">Projeto 3 — Sincronizar celular ↔ PC com rsync/ssh</a> — suba o <code>sshd</code> no celular e faça o PC mandar arquivos para <code>~/storage/shared</code>.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

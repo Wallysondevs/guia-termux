@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Root no Android: Magisk, su e o adb rootado do Pixel 7 Pro | Guia Termux</title>
+<meta name="description" content="Entenda o que é root no Android de verdade: bootloader desbloqueado, Magisk e o binário su, o usuário uid 0, os riscos (apps de banco, OTA, brick) e como usar o adb rootado do Pixel 7 Pro — adb devices, adb root (adbd como root) e adb shell whoami — praticando no terminal simulado ana@android.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Root no <span class="hl">Android</span>: Magisk, su e o adb rootado</h1>
+
+<p class="intro">O <strong>Termux funciona perfeitamente sem root</strong> — e essa é uma das coisas mais bonitas dele. Mas o celular da Ana, um <strong>Pixel 7 Pro com Android 14, está rootado</strong>: o bootloader foi desbloqueado, o <strong>Magisk</strong> está instalado e o <code>adb</code> consegue subir o daemon <code>adbd</code> como <code>root</code>. Nesta aula você vai entender o que "ter root" significa de verdade, quais os riscos — e como explorar esse poder com segurança a partir do Termux, começando por <code>adb root</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é <strong>root</strong> no Android: o superusuário <code>root</code> (uid 0) e por que o <code>/system</code> vem montado como somente leitura;</li>
+  <li>O papel do <strong>Magisk</strong> (patch da imagem de boot, módulos, "hide") e do binário <code>su</code>;</li>
+  <li>Por que root muda o jogo de <strong>segurança</strong>: apps de banco, OTA, brick e garantia;</li>
+  <li>Como o <strong>adb rootado</strong> do Pixel 7 Pro entrega um shell root: <code>adb devices</code>, <code>adb root</code>, <code>adb shell whoami</code>, <code>adb logcat</code>;</li>
+  <li>A diferença entre <strong>root no Android</strong> e root dentro do Termux — e o que o Termux ganha com isso;</li>
+  <li>Praticar tudo no terminal simulado <code>ana@android</code>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>O que é root, de verdade</h2>
+<p>O Android é um Linux. Como todo Linux, ele tem um superusuário chamado <strong>root</strong> (uid 0) capaz de ler e escrever <em>qualquer</em> arquivo e terminar <em>qualquer</em> processo. Nos celulares de fábrica esse poder é trancado: a partição <code>/system</code> é montada como <strong>somente leitura</strong>, não existe o binário <code>su</code> e o daemon <code>adbd</code> (o servidor do adb) roda como um usuário comum. "Ter root" significa exatamente uma coisa: conseguir executar comandos como uid 0.</p>
+<p>O caminho clássico para isso é <strong>desbloquear o bootloader</strong>, gravar uma imagem de boot modificada com o <strong>Magisk</strong> e instalar o app gerenciador. O resultado prático é o binário <code>su</code>: qualquer app pode chamar <code>su</code>, o Magisk mostra uma caixa de diálogo pedindo permissão e, se você aprovar, o comando roda como root:</p>
+<pre class="term" data-host="android">$ whoami
+u0_a231 (ana)
+$ su
+# whoami
+root
+# id
+uid=0(root) gid=0(root) groups=0(root)
+# uname -a
+Linux localhost 5.10.137-android14 #1 PREEMPT
+Android 14 · aarch64</pre>
+<p>Repare na diferença de identidade: dentro do Termux, sem root, <code>whoami</code> responde <code>u0_a231 (ana)</code> — um usuário comum do Android, com acesso apenas ao diretório privado do app (<code>/data/data/com.termux/files</code>) e ao <code>~/storage</code> compartilhado. Depois do <code>su</code>, o <em>mesmo shell</em> vira <code>root</code> e passa a enxergar o sistema inteiro: <code>/data</code> dos outros apps, processos do sistema, configurações de rádio e por aí vai.</p>
+
+<hr>
+
+<h2>Magisk: o porteiro do root</h2>
+<p>Hoje o padrão de mercado para root é o <strong>Magisk</strong> (hoje em dia distribuído como <em>Magisk</em>/<em>KernelSU</em>/<em>APatch</em>, todos com a mesma ideia): ele modifica a imagem de <code>boot</code> do celular para injetar o binário <code>su</code> e um daemon que controla quem pode usá-lo. Toda vez que um app pede root, o Magisk mostra a tela de permissão — é o porteiro. Ele também oferece:</p>
+<ul>
+  <li><strong>Magisk Hide / DenyList</strong>: esconde o root de apps específicos (bancos, DRM, jogos) que se recusam a abrir em celular rootado;</li>
+  <li><strong>Módulos</strong>:haut om tweaks/plugins que instalam modificaciones de sistema sem tocar na partição <code>/system</code> (que continua verificável e atualizável via OTA em modelos como o Pixel);</li>
+  <li><strong>Zygisk</strong>: injeta código em processos no momento da criação, dificultando a detecção.</li>
+</ul>
+<p>Ou seja: root hoje não é "tirar a trava do carro", é <strong>instalar um porteiro com lista de convidados</strong>.</p>
+
+<div class="warning">
+<strong>Root tem preço — conheça antes de usar.</strong> Com root no celular: (1) muitos <strong>apps de banco e DRM detectam e bloqueiam</strong> o appareil (use o DenyList do Magisk); (2) as <strong>atualizações OTA</strong> podem quebrar o root ou até causar bootloop; (3) se algo der errado na partição de boot, o celular pode <strong>não ligar mais (brick)</strong>; (4) a <strong>garantia</strong> é perdida na maioria dos fabricantes. Regra de ouro: só faça root em aparelho de estudo/backup — nunca no celular do dia a dia do trabalho ou do banco.
+</div>
+
+<hr>
+
+<h2>O adb rootado do Pixel 7 Pro</h2>
+<p>Existe um segundo caminho para root que não precisa de <code>su</code> dentro do app: o próprio <strong>adb</strong>. Em builds de engenharia (e em celulares com root/Magisk que permitem), o comando <code>adb root</code> reinicia o <code>adbd</code> como root. Aí qualquer <code>adb shell</code> abre direto como uid 0 — sem prompt de permissão, sem Magisk no caminho. O Pixel 7 Pro da Ana está assim:</p>
+<pre class="term" data-host="android">$ adb devices
+List of devices attached
+R5CT20ABCPIXEL	device product:blueline model:Pixel_7_Pro device:blueline
+
+Dispositivo rootado detectado ✓ (1 dispositivo)
+$ adb root
+restarting adbd as root
+adbd is already running as root ✓
+$ adb shell whoami
+root
+$ adb shell ls /data
+(adb shell no Pixel 7 Pro rootado) acesso total a /data ✓
+$ adb logcat
+--------- beginning of main
+I/ActivityManager: Displayed com.termux/.app.TermuxActivity
+D/adbd: root shell conectado</pre>
+<dl class="anatomy">
+  <dt>adb</dt><dd>o Android Debug Bridge: a ponte entre o PC (ou o próprio Termux) e o daemon <code>adbd</code> que vive no celular</dd>
+  <dt>root</dt><dd>pede para reiniciar o <code>adbd</code> como root — só funciona em builds userdebug/eng ou com root (Magisk)</dd>
+  <dt>shell</dt><dd>abre um shell <em>no celular</em>; tudo o que vem depois (<code>whoami</code>) roda lá dentro, não no seu terminal local</dd>
+  <dt>whoami</dt><dd>pergunta "quem sou eu?" — a prova impressa de que o shell é root</dd>
+</dl>
+<p>O <code>adb devices</code> também já denuncia o estado: repare na linha <code>R5CT20ABCPIXEL</code> (o número de série do Pixel) seguida de <code>device</code> e na mensagem de dispositivo rootado. Em um celular <em>sem</em> root, <code>adb root</code> responde <code>adbd cannot run as root in production builds</code> — é esse erro que confirma que o seu não está rootado.</p>
+
+<hr>
+
+<h2>Root no Android × root dentro do Termux</h2>
+<p>Vale separar duas coisas que se confundem:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>Termux sem root (padrão)</th><th>Android com root (Magisk/adb)</th></tr>
+<tr><td><strong>Identidade</strong></td><td><code>u0_a231</code> — usuário comum do Android</td><td><code>root</code> (uid 0) via <code>su</code> ou <code>adb shell</code></td></tr>
+<tr><td><strong>Acesso a arquivos</strong></td><td>Só <code>/data/data/com.termux/files</code> e <code>~/storage</code></td><td>O sistema inteiro, inclusive <code>/data</code> dos outros apps</td></tr>
+<tr><td><strong>Portas baixas / rede crua</strong></td><td>Não pode (limitação do usuário comum)</td><td>Pode capturar pacotes, mudar MAC, abrir portas &lt; 1024</td></tr>
+<tr><td><strong>Risco</strong></td><td>Mínimo — o Termux é um app como outro qualquer</td><td>Total: root ignora as proteções do Android</td></tr>
+<tr><td><strong>Quando usar</strong></td><td>95% do tempo: pkg, servidores, automação</td><td>Estudo, recuperación de dados, labs, tunning</td></tr>
+</table>
+</div>
+<p>O Termux em si <strong>não precisa de root</strong> para quase nada: o <code>pkg</code> instala programas no diretório privado do app, o <code>sshd</code> abre a porta 8022 e a Termux-API conversa com os apps do Android por intents. Root entra na conta para ir além: ler o <code>/data</code> de outros apps via <code>adb shell</code>, inspecionar o logcat completo, instalar um kernel com suporte a captura de pacotes, ou rodar distribuições com <code>proot-distro</code> com mais privileges. Pense no Termux como sua casa (sem root basta) e no root do Android como a chave do condomínio inteiro.</p>
+
+<pre class="term" data-host="android">$ termux-info
+TERMUX_VERSION=0.118.0
+ANDROID_VERSION=14
+CPU: Snapdragon 8 Gen 2
+RAM total: 8 GB
+Storage: 128 GB
+Shell: /data/data/com.termux/files/usr/bin/bash
+Device: Pixel 7 Pro (rooted)</pre>
+<p>O próprio <code>termux-info</code> entrega o diagnóstico: repare na última linha, <code>Device: Pixel 7 Pro (rooted)</code> — o simulador (assim como apps de diagnóstico reais) consegue detectar o root.</p>
+
+<hr>
+
+<h2>Como saber se um celular está rootado</h2>
+<p>Antes de usar root, dá para <strong>diagnosticar</strong> o appareil por vários sinais — alguns Delphi dentro do próprio Termux, outros via adb. No Pixel da Ana, a soma deles entrega o diagnóstico:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Sinal</th><th>Comando</th><th>Pixel 7 Pro rootado (Ana)</th><th>Celular comum</th></tr>
+<tr><td>Bootloader desbloqueado</td><td><code>adb shell getprop ro.boot.verifiedbootstate</code></td><td><code>orange</code> (unlocked)</td><td><code>green</code> (locked)</td></tr>
+<tr><td>adbd como root</td><td><code>adb root</code> + <code>adb shell whoami</code></td><td><code>root</code></td><td>usuário comum / erro "cannot run as root"</td></tr>
+<tr><td>Binário su presente</td><td><code>adb shell which su</code></td><td>caminho do <code>su</code> (Magisk)</td><td>não encontrado</td></tr>
+<tr><td>App Magisk instalado</td><td><code>adb shell pm list packages | grep magisk</code></td><td><code>com.topjohnwu.magisk</code></td><td>nada</td></tr>
+<tr><td>Systemless</td><td><code>adb shell su -c 'ls /system'</code></td><td>partição intacta, root "systemless"</td><td>somente leitura</td></tr>
+<tr><td>Diagnóstico no Termux</td><td><code>termux-info</code></td><td><code>Pixel 7 Pro (rooted)</code></td><td>modelo sem o selo</td></tr>
+</table>
+</div>
+<p>O detalhe mais elegante é o <strong>root "systemless"</strong> do Magisk: ele não modifica a partição <code>/system</code> (por isso ela continua passando na verificação de integridade e as OTAs instalam), e sim monta uma camada por cima dela em tempo de boot. É por isso que dá para ter root <em>e</em> <code>/system</code> verificado no mesmo aparelho.</p>
+
+<hr>
+
+<h2>O <code>tsu</code> do próprio Termux</h2>
+<p>Se o seu celular tem root via Magisk, o Termux ainda oferece um comando extra: o pacote <code>tsu</code> (<code>pkg install tsu</code>) instala um <code>su</code> dentro do próprio ambiente do Termux, permitindo que <em>scripts</em> do Termux peçam root sem sair do app. O fluxo é o mesmo do <code>su</code> normal — o Magisk mostra a permissão — mas a sessão continua dentro do Termux, com acesso ao <code>$PREFIX</code> e aos seus projetos:</p>
+<pre class="term" data-host="android">$ pkg install tsu
+...
+tsu instalado ✓
+$ tsu
+# whoami
+root
+# ls /data/data/com.whatsapp
+(adb shell no Pixel 7 Pro rootado) acesso total a /data ✓</pre>
+<p>Repare no poder (e no perigo) disso: com root, o Termux consegue ler o <code>/data</code> de <em>outros apps</em> — coisa que um usuário comum jamais conseguiria. Use isso para estudo, backup e recuperação de dados; jamais para invadir a privacidade de outra pessoa no aparelho.</p>
+
+<div class="warning">
+<strong>Root não é sinônimo de anonimato.</strong> Com root você <em>aumenta</em> a superfície de ataque: qualquer app com permissão de root aprobada por engano pode ler tudo. No Magisk, revise a lista de apps com root concedido (app do Magisk → aba Superusuário) e revogue o que não usa. E no Termux, prefira o princípio do menor privilégio: rode o dia a dia como <code>ana</code> e só chame <code>su</code>/<code>tsu</code> quando o comando realmente precisar.
+</div>
+
+<hr>
+
+<h2>Pratique no Pixel 7 Pro rootado</h2>
+<p>Nos terminais abaixo (máquina <code>ana@android</code>, Pixel 7 Pro com adb rootado), confirme a cadeia inteira do root via adb:</p>
+
+<div class="try" data-goal="already running as root" data-solucao="adb root">
+<p class="try-task"><strong>Missão:</strong> rode <code>adb devices</code> para ver o Pixel (<code>R5CT20ABCPIXEL</code>) e depois <code>adb root</code> para subir o <code>adbd</code> como root. A saída deve terminar com <code>adbd is already running as root ✓</code>.</p>
+</div>
+
+<div class="try" data-goal="root" data-solucao="adb shell whoami">
+<p class="try-task"><strong>Missão:</strong> abra um shell no celular com <code>adb shell whoami</code> e confirme que a resposta é <code>root</code>. Compare com o <code>whoami</code> dentro do Termux (<code>u0_a231 (ana)</code>).</p>
+</div>
+
+<div class="try" data-goal="Pixel 7 Pro (rooted)" data-solucao="termux-info">
+<p class="try-task"><strong>Missão:</strong> rode <code>termux-info</code> e encontre a linha <code>Device: Pixel 7 Pro (rooted)</code> junto com o hardware (<code>Snapdragon 8 Gen 2</code>, 8 GB de RAM). Também vale <code>adb logcat</code> para ver <code>root shell conectado</code>.</p>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Root = executar comandos como <code>root</code> (uid 0); no Android de fábrica isso é bloqueado (<code>/system</code> só leitura, sem <code>su</code>).</li>
+  <li><strong>Magisk</strong> é o porteiro moderno do root: instala o <code>su</code>, controla permissões por app e permite esconder o root (DenyList).</li>
+  <li>Riscos reais: apps de banco/DRM, OTA, brick e garantia — root só em aparelho de estudo.</li>
+  <li><code>adb root</code> (builds eng/userdebug ou Magisk) reinicia o <code>adbd</code> como root; <code>adb shell whoami</code> prova com <code>root</code>.</li>
+  <li>O Termux funciona sem root; com root você ganha acesso ao sistema inteiro (<code>/data</code>, logcat, rede crua).</li>
+  <li><code>termux-info</code> mostra o appareil: <code>Pixel 7 Pro (rooted)</code>, Snapdragon 8 Gen 2, Android 14.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="seguranca-termux.html">Segurança no Termux</a> — agora que o celular é rootado, vamos trancar a porta: senha forte com <code>passwd</code>, chaves SSH com <code>ssh-keygen</code> e a regra de ouro da porta 8022.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>

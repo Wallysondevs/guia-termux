@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pkg e apt no Termux: instalar programas no celular (update, install, search) | Guia Termux</title>
+<meta name="description" content="O gerenciador de pacotes do Termux: pkg é um apt adaptado para Android (repositórios packages.termux.dev, pacotes compilados para aarch64). Aprenda pkg update, pkg upgrade, pkg install python, pkg search, pkg list-installed, pkg show e pkg uninstall — incluindo o erro real 'Unable to locate package' quando o nome está errado. Com anatomia do comando, tabela de referência e missões no terminal simulado.">
+<link rel="stylesheet" href="assets/style.css?v=1">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{history.scrollRestoration="manual"}catch(e){}function z(){window.scrollTo(0,0);document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0}window.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);window.addEventListener("pageshow",z);window.addEventListener("pagehide",function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;});document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a){var h=a.getAttribute("href")||"";if(/[.]html($|[?#])/.test(h)&&a.host===location.host){window.scrollTo(0,0);document.documentElement.scrollTop=0;}}});</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1><span class="hl">pkg</span> e <span class="hl">apt</span>: instalar programas no celular</h1>
+
+<p class="intro">No PC você usa <code>apt install</code>. No Termux, o comando é <code>pkg install</code> — mas por baixo dos panos o <code>pkg</code> <strong>é um apt</strong> adaptado para o Android: mesmos repositórios no estilo Debian, mesmos comandos, porém com pacotes <strong>compilados para o processador do celular (aarch64)</strong> e que funcionam sem root. Nesta aula você instala seu primeiro programa (<code>pkg install python</code>), procura pacotes (<code>pkg search</code>), lista os instalados e vê o erro <code>Unable to locate package</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Por que o Termux tem o <code>pkg</code> e o que muda em relação ao <code>apt</code> do PC.</li>
+  <li>Os repositórios oficiais: <code>packages.termux.dev</code> (canal <code>stable</code>, repositório <code>termux-main</code>).</li>
+  <li><code>pkg update</code> / <code>pkg upgrade</code> — atualizar a lista e os programas.</li>
+  <li><code>pkg install python</code> — instalar (saída termina com <code>python instalado ✓</code>).</li>
+  <li><code>pkg search vim</code>, <code>pkg show</code>, <code>pkg list-installed</code> — pesquisar e inspecionar.</li>
+  <li>O erro <code>Unable to locate package X</code> e as causas reais.</li>
+  <li><code>apt</code> também funciona como apelido de <code>pkg</code> (com um aviso).</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>pkg vs apt: o que muda?</h2>
+<p>O Android não deixa apps modificarem o sistema, então o Termux não pode usar o <code>/usr</code> de verdade. Em vez disso, ele cria o próprio prefixo <code>/data/data/com.termux/files/usr</code> e instala tudo lá dentro. O gerenciador oficial desse ambiente é o <code>pkg</code> — que, na prática, chama o <code>apt</code> por baixo com os repositórios certos:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>PC (Debian/Ubuntu)</th><th>Termux</th></tr>
+<tr><td><strong>Comando</strong></td><td><code>apt install …</code></td><td><code>pkg install …</code> (ou <code>apt install …</code> — funciona como apelido)</td></tr>
+<tr><td><strong>Onde instala</strong></td><td><code>/usr/bin</code> (precisa de root)</td><td><code>/data/data/com.termux/files/usr/bin</code> (sem root)</td></tr>
+<tr><td><strong>Repositório</strong></td><td>deb.debian.org</td><td><code>https://packages.termux.dev/apt/termux-main</code></td></tr>
+<tr><td><strong>Arquitetura</strong></td><td>amd64 (PC)</td><td><code>aarch64</code> (celular ARM) — o <code>uname -m</code> confirma</td></tr>
+<tr><td><strong>Precisa de root?</strong></td><td>sim (<code>sudo</code>)</td><td><strong>não</strong> — o app já é dono da própria área</td></tr>
+</table>
+</div>
+
+<p>Por isso, quando um tutorial de Linux diz <code>sudo apt install python</code>, no Termux vira só <code>pkg install python</code>. Sem <code>sudo</code> — ele nem existe aqui.</p>
+
+<hr>
+
+<h2>Antes de instalar: pkg update</h2>
+<p>A lista de pacotes fica no celular; antes de qualquer instalação, atualize-a (e de tempos em tempos, faça <code>pkg upgrade</code> para atualizar tudo):</p>
+
+<pre class="term" data-host="android">$ pkg update
+Get:1 https://packages.termux.dev/apt/termux-main stable InRelease
+Reading package lists... Done
+Building dependency tree... Done
+$ pkg upgrade
+Reading package lists... Done
+0 packages upgraded, 0 newly installed.</pre>
+
+<hr>
+
+<h2>Instalando: pkg install python</h2>
+<p>O momento clássico. A Ana quer programar em Python no celular:</p>
+
+<div class="try" data-goal="python instalado ✓" data-solucao="pkg install python">
+<p class="try-task"><strong>Missão:</strong> digite <code>pkg install python</code> e aperte <kbd>Enter</kbd>. A saída deve terminar com <code>python instalado ✓</code>. Depois rode <code>python --version</code> para ver o <code>Python 3.11.9</code>.</p>
+</div>
+
+<pre class="term" data-host="android">$ pkg install python
+The following NEW packages will be installed:
+  python
+0 upgraded, 1 newly installed, 0 to remove.
+Setting up python (3.11.9-2) ...
+python instalado ✓
+$ python --version
+Python 3.11.9</pre>
+
+<dl class="anatomy">
+  <dt>pkg</dt><dd>O gerenciador de pacotes do Termux (wrapper do apt com as correções de caminho).</dd>
+  <dt>install</dt><dd>Subcomando "instalar".</dd>
+  <dt>python</dt><dd>O nome do pacote no repositório — é exatamente o nome que aparece no <code>pkg search</code>.</dd>
+</dl>
+
+<p>Depois da instalação, o binário já está no <code>PATH</code> (em <code>$PREFIX/bin</code>): é só chamar <code>python</code>. O mesmo vale para <code>nodejs</code> (<code>node --version</code> → <code>v20.11.1</code>), <code>git</code>, <code>vim</code>, <code>curl</code>, <code>nmap</code>, <code>openssh</code> (o <code>sshd</code> da aula seguinte), <code>sqlite</code>, <code>postgresql</code>, <code>nginx</code>, <code>proot</code>…</p>
+
+<pre class="term" data-host="android">$ pkg install nodejs git curl
+...
+nodejs instalado ✓
+git instalado ✓
+curl instalado ✓
+$ node --version
+v20.11.1
+$ git --version
+git version 2.44.0</pre>
+
+<hr>
+
+<h2>Procurando pacotes: pkg search e pkg show</h2>
+<p>Não sabe o nome exato? Pesquise:</p>
+
+<pre class="term" data-host="android">$ pkg search vim
+vim/stable 9.1.0 vim
+$ pkg search ng
+nginx/stable 1.25.4 nginx
+ngrok/stable 3.12.1 ngrok
+$ pkg show vim
+Package: vim
+Version: 9.1.0
+Maintainer: Termux
+Description: pacote do repositório Termux (simulado)</pre>
+
+<ul>
+  <li><code>pkg search termo</code> — lista pacotes cujo nome contém o termo (ex.: <code>vim</code> acha <code>vim</code>);</li>
+  <li><code>pkg show pacote</code> — ficha técnica do pacote (versão, mantenedor, descrição);</li>
+  <li><code>pkg list-installed</code> — só os instalados, cada linha com <code>[installed]</code> (aula <a href="instalar.html">instalar</a> mostrou).</li>
+</ul>
+
+<hr>
+
+<h2>Quando o nome está errado: Unable to locate package</h2>
+<p>O erro mais comum de quem está começando:</p>
+
+<div class="try" data-goal="Unable to locate package" data-solucao="pkg install pacote-que-nao-existe">
+<p class="try-task"><strong>Missão:</strong> rode <code>pkg install pacote-que-nao-existe</code> de propósito. A saída deve ser <code>Unable to locate package pacote-que-nao-existe</code> — e agora você sabe que o nome está errado, não o Termux.</p>
+</div>
+
+<pre class="term" data-host="android">$ pkg install pythom
+Unable to locate package pythom</pre>
+
+<div class="warn"><strong>Causas reais de "Unable to locate package":</strong> (1) erro de digitação no nome (o exemplo acima: <code>pythom</code>); (2) faltou <code>pkg update</code> depois de instalar o app; (3) o pacote vive em repositório extra (x11-repo, unstable, root-repo) que você ainda não habilitou. Solução: <code>pkg update</code> + <code>pkg search termo</code> para achar o nome exato.</div>
+
+<hr>
+
+<h2>Desinstalando e limpando</h2>
+<pre class="term" data-host="android">$ pkg uninstall nano
+Removing nano ...
+nano removido.
+$ pkg list-installed | grep nano
+(sem saída — não está mais instalado)</pre>
+
+<p>O <code>pkg uninstall</code> (ou <code>pkg remove</code>) tira o pacote. Para limpar o cache de pacotes baixados e liberar espaço: <code>pkg clean</code>.</p>
+
+<hr>
+
+<h2>Tabela de referência: pkg/apt no dia a dia</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando</th><th>O que faz</th><th>Exemplo</th></tr>
+<tr><td><code>pkg update</code></td><td>Baixa a lista atualizada dos repositórios</td><td><code>Reading package lists... Done</code></td></tr>
+<tr><td><code>pkg upgrade</code></td><td>Atualiza todos os pacotes instalados</td><td><code>0 packages upgraded…</code></td></tr>
+<tr><td><code>pkg install NOME</code></td><td>Instala um pacote (e dependências)</td><td><code>pkg install python</code> → <code>python instalado ✓</code></td></tr>
+<tr><td><code>pkg search TERMO</code></td><td>Procura pacotes pelo nome</td><td><code>pkg search vim</code> → <code>vim/stable 9.1.0 vim</code></td></tr>
+<tr><td><code>pkg show NOME</code></td><td>Mostra ficha do pacote</td><td>versão, mantenedor, descrição</td></tr>
+<tr><td><code>pkg list-installed</code></td><td>Lista só os instalados</td><td>linhas com <code>[installed]</code></td></tr>
+<tr><td><code>pkg uninstall NOME</code></td><td>Remove o pacote</td><td><code>pkg uninstall nano</code></td></tr>
+<tr><td><code>apt …</code></td><td>Apelido de <code>pkg</code> (mesmos subcomandos)</td><td><code>apt install curl</code> funciona igual</td></tr>
+</table>
+</div>
+
+<p>Pacotes úteis para este guia inteiro: <code>python</code>, <code>nodejs</code>, <code>openssh</code> (sshd), <code>vim</code>/<code>nano</code>, <code>sqlite</code>, <code>postgresql</code>, <code>curl</code>, <code>git</code>, <code>nmap</code>, <code>proot</code> (proot-distro), <code>termux-api</code>, <code>nginx</code>, <code>ngrok</code>, <code>htop</code>, <code>tmux</code>, <code>rsync</code>.</p>
+
+<hr>
+
+<h2>Vários pacotes de uma vez + onde eles moram</h2>
+<p>O <code>pkg install</code> aceita vários nomes na mesma linha — as dependências são resolvidas sozinhas:</p>
+
+<pre class="term" data-host="android">$ pkg install vim nano htop tmux rsync
+...
+vim instalado ✓
+nano instalado ✓
+htop instalado ✓
+tmux instalado ✓
+rsync instalado ✓
+$ echo $PREFIX
+/data/data/com.termux/files/usr
+$ ls $PREFIX/bin | head
+bash  cat  curl  git  htop  ls  nano  python  rsync  ssh  vim</pre>
+
+<p>Todo binário instalado cai em <code>$PREFIX/bin</code> — e esse diretório já está no <code>PATH</code>, por isso você chama <code>python</code> direto, sem caminho completo.</p>
+
+<dl class="anatomy">
+  <dt>$PREFIX</dt><dd>Variável de ambiente que aponta para a raiz do Termux: <code>/data/data/com.termux/files/usr</code>. É o "usr" particular do app.</dd>
+  <dt>PATH</dt><dd>Lista de pastas onde o shell procura comandos — <code>echo $PATH</code> mostra. Se um comando não é achado, ele não está em nenhuma pasta do PATH (ou não foi instalado).</dd>
+</dl>
+
+<hr>
+
+<h2>Quando a instalação falha no meio</h2>
+<div class="warn"><strong>Espaço insuficiente</strong> é comum em celular: o <code>pkg install postgresql</code> baixa dezenas de MB e o Termux vive na memória interna. Sintoma: o download trava em 0% ou dá erro de escrita. Solução: <code>pkg clean</code> (limpa o cache de .deb baixados) e liberar espaço em <code>~/storage/downloads</code>.</div>
+<div class="warn"><strong>Pacote que não existe no Termux:</strong> programas que dependem de <code>systemd</code>, device drivers ou root real (ex.: alguns servidores de banco enterprise, docker-ce oficial) <strong>não têm pacote no repositório Termux</strong>. A saída é <code>Unable to locate package</code> mesmo com a lista atualizada. Alternativas: usar a versão disponível (ex.: <code>postgresql</code> funciona; <code>nginx</code> funciona) ou rodar dentro do <code>proot-distro</code> (nível 2).</div>
+<div class="warn"><strong>Conflito de pacote:</strong> se você instalou algo por fora do <code>pkg</code> (APK manual, Termux:API de outra fonte), pode dar conflito de assinatura. Remova o app externo e reinstale pelo F-Droid — nunca misture fontes.</div>
+
+<hr>
+
+<h2>Lendo a saída da instalação (anatomia do apt)</h2>
+<p>Quando o <code>pkg install</code> roda, cada linha da saída tem um significado:</p>
+
+<pre class="term" data-host="android">$ pkg install python
+The following NEW packages will be installed:   « quais pacotes novos entram
+  python
+0 upgraded, 1 newly installed, 0 to remove.       « resumo: 1 novo, nada removido
+Setting up python (3.11.9-2) ...                  « instalando de fato (versão entre parênteses)
+python instalado ✓</pre>
+
+<ul>
+  <li><code>Get:1 https://packages.termux.dev/…</code> — de qual repositório veio a lista/metadados;</li>
+  <li><code>The following NEW packages will be installed</code> — se aparecer <code>REMOVED</code> ou <code>not upgraded</code>, o apt está avisando que algo vai mudar além do pedido (leia antes de confirmar com <code>-y</code>);</li>
+  <li><code>Setting up …</code> — o pacote está sendo configurado (scripts pós-instalação);</li>
+  <li>Erros típicas de rede no meio: <code>Failed to fetch …</code> → rode <code>pkg update</code> e tente de novo.</li>
+</ul>
+
+<div class="warn"><strong><code>pkg install -y nome</code></strong> confirma tudo sozinho (bom para scripts). <strong>Perigo:</strong> em scripts, o <code>-y</code> pula a revisão de quais pacotes serão removidos — se o resumo mostrar <code>to remove</code> com algo que você usa, cancele (<kbd>Ctrl</kbd>+<kbd>C</kbd>) e instale sem o <code>-y</code>.</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>pkg</code> é o apt do Termux: instala em <code>/data/data/com.termux/files/usr</code>, sem root, de <code>packages.termux.dev</code>, para <code>aarch64</code>.</li>
+  <li>Sempre comece com <code>pkg update</code> (<code>Reading package lists... Done</code>) e mantenha com <code>pkg upgrade</code>.</li>
+  <li><code>pkg install python</code> instala e a última linha é <code>python instalado ✓</code>; o binário já entra no <code>PATH</code>.</li>
+  <li>Para achar nomes: <code>pkg search termo</code>, <code>pkg show pacote</code>, <code>pkg list-installed</code> (<code>[installed]</code>).</li>
+  <li>Erro <code>Unable to locate package X</code> = nome errado, lista desatualizada ou repositório extra faltando.</li>
+  <li><code>apt install …</code> também funciona (apelido de <code>pkg</code>); <code>pkg uninstall</code> remove.</li>
+</ul>
+
+<div class="tip"><strong>Próxima aula:</strong> <a href="sshd.html">sshd no Termux: acessar o celular pelo PC (SSH)</a> — <code>pkg install openssh</code>, trocar a senha com <code>passwd</code>, gerar chave com <code>ssh-keygen</code> e ligar o servidor na porta 8022.</div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js?v=1"></script>
+</body>
+</html>
